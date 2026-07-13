@@ -1,0 +1,247 @@
+/* DESIGN MOBILE-FIRST URBAN & MODERN PREMIUM */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    /* DARK THEME PRINCIPAL */
+    --bg-primary: #070709;
+    --bg-secondary: #0f0f14;
+    --bg-tertiary: #171721;
+    --text-primary: #ffffff;
+    --text-secondary: #8e8e9a;
+    --accent-pink: #d4145a;
+    --accent-pink-hover: #f91d71;
+    --border-color: #1f1f2e;
+    --shadow-main: rgba(0, 0, 0, 0.6);
+    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --hour-height: 90px;
+}
+
+[data-theme="light"] {
+    /* LIGHT THEME EQUILIBRADO */
+    --bg-primary: #f4f5f8;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #eaedf2;
+    --text-primary: #111115;
+    --text-secondary: #6c6c7d;
+    --border-color: #dbdfe7;
+    --shadow-main: rgba(0, 0, 0, 0.08);
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+.auth-screen {
+    min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    background: radial-gradient(circle at top, #421126, #08070a 55%); overflow-y: auto;
+}
+.auth-card {
+    display: grid; gap: 16px; width: min(100%, 420px); padding: 32px;
+    border: 1px solid #35212b; border-radius: 24px; background: #121015; color: #fff;
+    box-shadow: 0 30px 80px rgba(0,0,0,.45);
+}
+.auth-logo { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; background: #eb1762; font-weight: 900; }
+.auth-card h1 { font-size: 1.6rem; }
+.auth-card p, .auth-card a { color: #aa9ba2; line-height: 1.5; text-align: center; }
+.auth-card label { color: #d8ccd2; font-size: .8rem; }
+.auth-card input { margin-top: 7px; }
+.auth-card button { padding: 14px; border: 0; border-radius: 12px; background: #eb1762; color: #fff; font-weight: 800; cursor: pointer; }
+.auth-card button:disabled { opacity: .65; }
+.auth-error { padding: 10px 12px; border-radius: 10px; background: rgba(239,68,68,.14); color: #ff9a9a; font-size: .85rem; }
+.auth-signout {
+    position: fixed; top: 14px; right: 62px; z-index: 10000; display: grid; width: 36px; height: 36px;
+    place-items: center; border: 1px solid var(--border-color); border-radius: 50%;
+    background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer;
+}
+
+.booking-site { height: 100vh; }
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* HEADER OTIMIZADO PARA MOBILE */
+.main-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px 4px 16px;
+}
+
+.header-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+    background: linear-gradient(135deg, var(--accent-pink), #8e0e3b);
+    color: #fff; font-weight: 700; font-size: 16px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
+}
+.brand h2 { font-size: 16px; font-weight: 700; }
+
+.theme-toggle {
+    background: var(--bg-tertiary); border: none; color: var(--text-primary);
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+
+/* NAVEGAÇÃO DE DATAS */
+.date-navigator-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.date-navigator-bar h3 { font-size: 15px; font-weight: 700; }
+.nav-arrow {
+    background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary);
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+
+/* CHAVEADOR DE ABAS */
+.view-switcher-container { display: flex; justify-content: center; margin-bottom: 12px; }
+.view-switcher { display: flex; background-color: var(--bg-tertiary); padding: 4px; border-radius: var(--radius-md); width: 100%; }
+.switch-btn {
+    flex: 1; background: none; border: none; padding: 10px 0; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer; transition: 0.2s;
+}
+.switch-btn.active { background-color: var(--bg-secondary); color: var(--accent-pink); font-weight: 700; box-shadow: 0 2px 6px var(--shadow-main); }
+
+/* HORIZONTAL SCROLLER PARA PROFISSIONAIS NO CELULAR */
+.prof-tabs-scroller {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+}
+.prof-tabs-scroller::-webkit-scrollbar { display: none; }
+.prof-tab {
+    background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary);
+    padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.prof-tab.active { background-color: var(--accent-pink); color: white; border-color: var(--accent-pink); }
+
+/* STRIP DE DIAS DA SEMANA */
+.week-days-strip { display: grid; grid-template-columns: repeat(7, 1fr); background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 8px 4px; text-align: center; }
+.day-strip-item { display: flex; flex-direction: column; gap: 4px; }
+.day-strip-item .label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); }
+.day-strip-item .value { font-size: 14px; font-weight: 700; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; border-radius: 50%; }
+.day-strip-item.active .value { background-color: var(--accent-pink); color: white; }
+
+/* ÁREA CENTRAL DAS VISUALIZAÇÕES */
+.views-wrapper { flex: 1; overflow: hidden; position: relative; }
+.view-container { height: 100%; width: 100%; display: flex; flex-direction: column; }
+.hidden { display: none !important; }
+
+/* TIMELINE CONTÍNUA MOBILE COMPACTA */
+.timeline-scroll-wrapper { flex: 1; overflow-y: auto; overflow-x: auto; background-color: var(--bg-primary); }
+.timeline-grid-container { display: grid; grid-template-columns: 60px 1fr; position: relative; }
+
+/* Eixo de Horas Esquerdo com Destaque Interativo */
+.timeline-hours-axis { display: flex; flex-direction: column; border-right: 1px solid var(--border-color); background-color: var(--bg-secondary); }
+.axis-hour-label {
+    height: var(--hour-height); font-size: 11px; font-weight: 700; color: var(--text-secondary);
+    display: flex; align-items: flex-start; justify-content: center; padding-top: 6px;
+    transition: color 0.2s, background-color 0.2s;
+}
+/* Classe de acendimento via JS */
+.axis-hour-label.active-highlight {
+    color: var(--accent-pink);
+    background-color: rgba(214, 20, 90, 0.08);
+}
+
+/* Área das Colunas flutuantes */
+.professionals-columns-grid { display: flex; flex: 1; }
+.prof-timeline-column { flex: 1; min-width: 140px; border-right: 1px solid var(--border-color); position: relative; display: flex; flex-direction: column; }
+.prof-timeline-column:last-child { border-right: none; }
+.prof-column-label { background-color: var(--bg-tertiary); text-align: center; font-size: 11px; font-weight: 700; padding: 4px 0; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
+
+.timeline-events-area {
+    position: relative; width: 100%; height: calc(15 * var(--hour-height));
+    background-image: linear-gradient(var(--border-color) 1px, transparent 1px); background-size: 100% var(--hour-height);
+}
+
+/* CARDS FLUTUANTES DINÂMICOS */
+.dynamic-appointment-card {
+    position: absolute; left: 4px; width: calc(100% - 8px); padding: 8px;
+    border-radius: var(--radius-sm); box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; justify-content: flex-start; border-left: 3px solid var(--accent-pink); z-index: 5;
+}
+.dynamic-appointment-card.pink { background: linear-gradient(135deg, var(--accent-pink), #800b34); color: white; }
+.dynamic-appointment-card.dark-pink { background-color: #4a061e; color: white; border-left-color: #ff4081; }
+.dynamic-appointment-card.black-theme { background-color: #000000; color: #ffffff; border: 1px solid var(--accent-pink); }
+
+.dynamic-appointment-card .app-time { font-size: 9px; font-weight: 700; opacity: 0.8; }
+.dynamic-appointment-card .app-client { font-weight: 700; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dynamic-appointment-card .app-service { font-size: 11px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* VISÃO SEMANAL VERSÃO CARDS MOBILE */
+.weekly-cards-container { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; height: 100%; padding-bottom: 90px; }
+.weekly-day-board { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; }
+.weekly-day-board h4 { font-size: 13px; color: var(--accent-pink); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+.weekly-board-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+
+/* VISÃO MENSAL GRADE */
+.monthly-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px; overflow-y: auto; }
+.month-day-cell { background-color: var(--bg-secondary); border: 1px solid var(--border-color); min-height: 75px; padding: 4px; display: flex; flex-direction: column; border-radius: 4px; }
+.month-day-num { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.mini-indicator { width: 100%; height: 4px; background-color: var(--accent-pink); border-radius: 2px; margin-top: 2px; }
+
+/* BOTTOM NAVIGATION NATIVA BAR */
+.bottom-nav {
+    height: 68px; background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);
+    display: flex; justify-content: space-around; align-items: center; position: relative; z-index: 90;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav-item { text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-secondary); }
+.bottom-nav-item i { font-size: 18px; }
+.bottom-nav-item span { font-size: 10px; font-weight: 500; }
+.bottom-nav-item.active { color: var(--accent-pink); }
+
+/* FAB CENTRAL DA BOTTOM NAV */
+.nav-fab {
+    width: 48px; height: 48px; background-color: var(--accent-pink); color: white;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;
+    box-shadow: 0 4px 12px rgba(214, 20, 90, 0.4); transform: translateY(-14px);
+}
+
+/* MODAL */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.8); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 1000; }
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-box { background-color: var(--bg-secondary); border-radius: var(--radius-lg) var(--radius-lg) 0 0; width: 100%; padding: 24px; transform: translateY(100%); transition: transform 0.3s ease; }
+.modal-overlay.active .modal-box { transform: translateY(0); }
+.modal-header { display: flex; justify-content: space-between; margin-bottom: 16px; }
+.close-modal-btn { background: none; border: none; color: var(--text-secondary); font-size: 20px; }
+.form-group { margin-bottom: 12px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.appointment-core-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.appointment-schedule-grid { display: grid; grid-template-columns: 1.15fr .85fr 1fr; gap: 12px; }
+label { font-size: 11px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+input, select { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px; border-radius: var(--radius-md); outline: none; -webkit-appearance: none; }
+.modal-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.btn-primary { background-color: var(--accent-pink); color: white; border: none; padding: 14px; border-radius: var(--radius-md); font-weight: 700; }
+.btn-secondary { background: none; color: var(--text-secondary); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-md); }
+
+@media (max-width: 520px) {
+    .appointment-core-grid { grid-template-columns: 1fr; }
+    .appointment-schedule-grid { grid-template-columns: 1fr 1fr; }
+    .appointment-schedule-grid > div:last-child { grid-column: 1 / -1; }
+}
