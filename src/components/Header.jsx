@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { supabase } from '../supabaseClient'
 
 export default function Header({
   theme, toggleTheme, view, setView, profFilter, setProfFilter, professionals, selectedDate, onPrev, onNext
@@ -22,9 +23,14 @@ export default function Header({
           <span className="brand-logo">B</span>
           <h2>Bonyta Studio</h2>
         </div>
-        <button className="theme-toggle" onClick={toggleTheme} aria-label="Alternar Tema">
-          <i className={theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun'}></i>
-        </button>
+        <div className="header-actions">
+          <button className="theme-toggle" onClick={toggleTheme} aria-label="Alternar tema">
+            <i className={theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun'}></i>
+          </button>
+          <button className="header-signout" type="button" onClick={() => supabase.auth.signOut()} aria-label="Sair da conta" title="Sair da conta">
+            <i className="fa-solid fa-arrow-right-from-bracket" />
+          </button>
+        </div>
       </div>
 
       {/* 1. SELETOR DE VISÃO (Fixo no topo da navegação) */}

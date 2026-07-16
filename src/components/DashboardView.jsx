@@ -1,177 +1,520 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react'
+import { formatDateToISO } from '../utils'
 
-export default function DashboardView({ appointments, professionals, theme }) {
-  const [refDate, setRefDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState('numeros'); 
-  const [dashProfFilter, setDashProfFilter] = useState('todos');
-  
-  const isLight = theme === 'light';
-  const textMain = isLight ? '#333' : '#fff';
-  const textSec = isLight ? '#666' : '#aaa';
-  const bgMain = isLight ? '#f9f9f9' : '#121212';
-  const bgCard = isLight ? '#ffffff' : '#1e1e1e';
-  const borderCol = isLight ? '#eee' : '#333';
+const formatCurrency = (value) => (
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
+)
 
-  const monthName = refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const prevMonth = () => setRefDate(new Date(refDate.getFullYear(), refDate.getMonth() - 1, 1));
-  const nextMonth = () => setRefDate(new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1));
+const statusConfig = {
+  pendente: { label: 'Pendentes', color: '#f59e0b' },
+  confirmado: { label: 'Confirmados', color: '#3b82f6' },
+  concluido: { label: 'Concluidos', color: '#10b981' },
+  faltou: { label: 'Faltas', color: '#ef4444' }
+}
 
-  const currentMonthISO = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
-  
-  const validAppointments = appointments.filter(a => 
-    a.status === 'concluido' && 
-    a.date.startsWith(currentMonthISO) &&
-    (dashProfFilter === 'todos' || a.professional_id === dashProfFilter)
-  );
+const paymentMethodLabel = {
+  nao_informado: 'Nao informado',
+  pix: 'Pix',
+  credito: 'Credito',
+  debito: 'Debito',
+  dinheiro: 'Dinheiro',
+  transferencia: 'Transferencia',
+  outro: 'Outro'
+}
 
-  const faturamentoBruto = validAppointments.reduce((sum, a) => sum + (Number(a.total_price) || 0), 0);
-  const custosTotais = validAppointments.reduce((sum, a) => sum + (Number(a.total_cost) || 0), 0);
-  const lucroLiquido = faturamentoBruto - custosTotais;
+const paymentStatusLabel = {
+  aberto: 'Em aberto',
+  sinal: 'Sinal',
+  pago: 'Pago'
+}
 
-  // Prepara os dados para as colunas do gráfico
-  const chartData = professionals
-    .filter(p => dashProfFilter === 'todos' || p.id === dashProfFilter)
-    .map(prof => {
-      const profApps = validAppointments.filter(a => a.professional_id === prof.id);
-      const totalValue = profApps.reduce((sum, a) => sum + (Number(a.total_price) || 0), 0);
-      return { name: prof.name, value: totalValue };
-    });
+const compensationTypeLabel = {
+  studio: 'Estudio',
+  commission: 'Porcentagem',
+  rent_share: 'Aluguel'
+}
 
-  // Descobre a coluna mais alta para servir de teto (100%)
-  const maxChartValue = Math.max(...chartData.map(d => d.value), 1);
+const getPaidAmount = (appointment) => {
+  if (appointment.amount_paid === null || appointment.amount_paid === undefined) {
+    return Number(appointment.payment_status === 'pago' ? appointment.total_price || 0 : 0)
+  }
+  return Number(appointment.amount_paid || 0)
+}
+
+const getOpenAmount = (appointment) => (
+  Math.max(Number(appointment.total_price || 0) - getPaidAmount(appointment), 0)
+)
+
+const shortDate = (date) => {
+  if (!date) return ''
+  const [year, month, day] = date.split('-')
+  return day && month && year ? `${day}/${month}/${year}` : date
+}
+
+export default function DashboardView({ appointments, professionals, products = [], onUpdateProfessional, theme }) {
+  const [refDate, setRefDate] = useState(new Date())
+  const [periodMode, setPeriodMode] = useState('mes')
+  const [dashProfFilter, setDashProfFilter] = useState('todos')
+  const [compDrafts, setCompDrafts] = useState({})
+  const [savingProfessionalId, setSavingProfessionalId] = useState(null)
+
+  const isLight = theme === 'light'
+  const textMain = isLight ? '#333' : '#fff'
+  const textSec = isLight ? '#666' : '#aaa'
+  const bgMain = isLight ? '#f9f9f9' : '#121212'
+  const bgCard = isLight ? '#ffffff' : '#1e1e1e'
+  const borderCol = isLight ? '#eee' : '#333'
+  const bgInput = isLight ? '#ffffff' : '#151515'
+
+  useEffect(() => {
+    setCompDrafts((current) => {
+      const next = { ...current }
+      professionals.forEach((professional) => {
+        if (!next[professional.id]) {
+          next[professional.id] = {
+            compensation_type: professional.compensation_type || 'studio',
+            commission_percent: professional.commission_percent ?? 0,
+            monthly_rent_share: professional.monthly_rent_share ?? 0
+          }
+        }
+      })
+      return next
+    })
+  }, [professionals])
+
+  const monthName = refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const dayName = refDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
+  const currentMonthISO = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`
+  const currentDayISO = formatDateToISO(refDate)
+
+  const navigatePeriod = (dir) => {
+    setRefDate((current) => {
+      const next = new Date(current)
+      if (periodMode === 'mes') next.setMonth(next.getMonth() + dir)
+      else next.setDate(next.getDate() + dir)
+      return next
+    })
+  }
+
+  const scopedAppointments = useMemo(() => (
+    appointments
+      .filter((appointment) => !appointment.is_block)
+      .filter((appointment) => periodMode === 'mes'
+        ? appointment.date?.startsWith(currentMonthISO)
+        : appointment.date === currentDayISO)
+      .filter((appointment) => dashProfFilter === 'todos' || appointment.professional_id === dashProfFilter)
+      .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+  ), [appointments, currentDayISO, currentMonthISO, dashProfFilter, periodMode])
+
+  const payableAppointments = scopedAppointments.filter((appointment) => appointment.status !== 'faltou')
+  const closedAppointments = scopedAppointments.filter((appointment) => appointment.status === 'concluido')
+
+  const faturamentoPrevisto = payableAppointments.reduce((sum, appointment) => sum + Number(appointment.total_price || 0), 0)
+  const faturamentoConcluido = closedAppointments.reduce((sum, appointment) => sum + Number(appointment.total_price || 0), 0)
+  const custosPrevistos = payableAppointments.reduce((sum, appointment) => sum + Number(appointment.total_cost || 0), 0)
+  const custosConcluidos = closedAppointments.reduce((sum, appointment) => sum + Number(appointment.total_cost || 0), 0)
+  const totalRecebido = payableAppointments.reduce((sum, appointment) => sum + getPaidAmount(appointment), 0)
+  const totalEmAberto = payableAppointments.reduce((sum, appointment) => sum + getOpenAmount(appointment), 0)
+  const lucroPrevisto = faturamentoPrevisto - custosPrevistos
+  const lucroConcluido = faturamentoConcluido - custosConcluidos
+  const lucroRecebido = totalRecebido - custosPrevistos
+  const ticketMedio = faturamentoPrevisto / Math.max(payableAppointments.length, 1)
+  const marginPercent = faturamentoPrevisto > 0 ? (lucroPrevisto / faturamentoPrevisto) * 100 : 0
+
+  const paymentStatusCounts = payableAppointments.reduce((acc, appointment) => {
+    const status = appointment.payment_status || 'aberto'
+    acc[status] = (acc[status] || 0) + 1
+    return acc
+  }, {})
+
+  const statusCounts = scopedAppointments.reduce((acc, appointment) => {
+    const status = appointment.status || 'pendente'
+    acc[status] = (acc[status] || 0) + 1
+    return acc
+  }, {})
+
+  const paymentMethods = payableAppointments.reduce((acc, appointment) => {
+    const method = appointment.payment_method || 'nao_informado'
+    const paid = getPaidAmount(appointment)
+    if (!acc[method]) acc[method] = { method, paid: 0, count: 0 }
+    acc[method].paid += paid
+    if (paid > 0) acc[method].count += 1
+    return acc
+  }, {})
+
+  const paymentMethodRows = Object.values(paymentMethods)
+    .filter((item) => item.paid > 0 || item.method === 'nao_informado')
+    .sort((a, b) => b.paid - a.paid)
+
+  const openReceivables = payableAppointments
+    .filter((appointment) => getOpenAmount(appointment) > 0)
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+
+  const professionalFinanceRows = professionals
+    .filter((professional) => dashProfFilter === 'todos' || professional.id === dashProfFilter)
+    .map((professional) => {
+      const profAppointments = payableAppointments.filter((appointment) => appointment.professional_id === professional.id)
+      const revenue = profAppointments.reduce((sum, appointment) => sum + Number(appointment.total_price || 0), 0)
+      const received = profAppointments.reduce((sum, appointment) => sum + getPaidAmount(appointment), 0)
+      const materialCost = profAppointments.reduce((sum, appointment) => sum + Number(appointment.total_cost || 0), 0)
+      const compensationType = professional.compensation_type || 'studio'
+      const commissionPercent = Number(professional.commission_percent || 0)
+      const commissionPayout = compensationType === 'commission' ? revenue * (commissionPercent / 100) : 0
+      const rentShare = compensationType === 'rent_share' && periodMode === 'mes'
+        ? Number(professional.monthly_rent_share || 0)
+        : 0
+      const studioResult = compensationType === 'rent_share'
+        ? rentShare
+        : revenue - materialCost - commissionPayout
+
+      return {
+        id: professional.id,
+        name: professional.name,
+        compensationType,
+        commissionPercent,
+        monthlyRentShare: Number(professional.monthly_rent_share || 0),
+        count: profAppointments.length,
+        revenue,
+        received,
+        materialCost,
+        commissionPayout,
+        rentShare,
+        studioResult
+      }
+    })
+
+  const totalCommissionPayout = professionalFinanceRows.reduce((sum, item) => sum + item.commissionPayout, 0)
+  const totalRentShare = professionalFinanceRows.reduce((sum, item) => sum + item.rentShare, 0)
+  const studioResult = professionalFinanceRows.reduce((sum, item) => sum + item.studioResult, 0)
+
+  const ranking = professionals
+    .filter((professional) => dashProfFilter === 'todos' || professional.id === dashProfFilter)
+    .map((professional) => {
+      const profAppointments = payableAppointments.filter((appointment) => appointment.professional_id === professional.id)
+      const revenue = profAppointments.reduce((sum, appointment) => sum + Number(appointment.total_price || 0), 0)
+      const received = profAppointments.reduce((sum, appointment) => sum + getPaidAmount(appointment), 0)
+      const costs = profAppointments.reduce((sum, appointment) => sum + Number(appointment.total_cost || 0), 0)
+      return { id: professional.id, name: professional.name, count: profAppointments.length, revenue, received, profit: revenue - costs }
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+
+  const maxRevenue = Math.max(...ranking.map((item) => item.revenue), 1)
+  const periodTitle = periodMode === 'mes' ? monthName : dayName
+  const stockCostValue = products.reduce((sum, product) => sum + Number(product.cost || 0) * Number(product.stock_quantity || 0), 0)
+  const stockSaleValue = products.reduce((sum, product) => sum + Number(product.price || 0) * Number(product.stock_quantity || 0), 0)
+  const lowStockProducts = products
+    .filter((product) => Number(product.stock_quantity || 0) <= 2)
+    .sort((a, b) => Number(a.stock_quantity || 0) - Number(b.stock_quantity || 0))
+
+  const handleCompDraftChange = (professionalId, patch) => {
+    setCompDrafts((current) => ({
+      ...current,
+      [professionalId]: {
+        ...(current[professionalId] || {}),
+        ...patch
+      }
+    }))
+  }
+
+  const handleSaveCompensation = async (professionalId) => {
+    if (!onUpdateProfessional) return
+    const draft = compDrafts[professionalId] || {}
+    setSavingProfessionalId(professionalId)
+    try {
+      await onUpdateProfessional(professionalId, {
+        compensation_type: draft.compensation_type || 'studio',
+        commission_percent: Number(draft.commission_percent || 0),
+        monthly_rent_share: Number(draft.monthly_rent_share || 0)
+      })
+    } catch (err) {
+      alert(`Erro ao salvar regra financeira: ${err.message}`)
+    } finally {
+      setSavingProfessionalId(null)
+    }
+  }
 
   return (
-    <div style={{ padding: '20px', paddingBottom: '100px', background: bgMain, minHeight: '100vh' }}>
-      
-      {/* 1. SELETOR DE DUPLA VISÃO */}
-      <div style={{ display: 'flex', justifyContent: 'center', background: bgCard, padding: '4px', borderRadius: '10px', marginBottom: '20px', border: `1px solid ${borderCol}` }}>
-        <button onClick={() => setViewMode('numeros')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', background: viewMode === 'numeros' ? 'var(--primary-color, #e91e63)' : 'transparent', color: viewMode === 'numeros' ? '#fff' : textSec, transition: 'all 0.2s' }}>
-          <i className="fa-solid fa-list-ol" style={{ marginRight: '6px' }}></i> Numérica
-        </button>
-        <button onClick={() => setViewMode('grafico')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', background: viewMode === 'grafico' ? 'var(--primary-color, #e91e63)' : 'transparent', color: viewMode === 'grafico' ? '#fff' : textSec, transition: 'all 0.2s' }}>
-          <i className="fa-solid fa-chart-column" style={{ marginRight: '6px' }}></i> Gráfica
-        </button>
+    <div style={{ padding: '20px', paddingBottom: '100px', background: bgMain, height: '100%', overflowY: 'auto' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: textMain, margin: 0 }}>Financas</h2>
+        <p style={{ color: textSec, fontSize: '0.82rem', marginTop: '4px' }}>Fechamento de caixa, comandas e pendencias</p>
       </div>
 
-      {/* 2. FILTRO E NAVEGADOR DE MESES */}
-      <div style={{ background: bgCard, padding: '16px', borderRadius: '12px', border: `1px solid ${borderCol}`, marginBottom: '24px' }}>
-        <label style={{ display: 'block', fontSize: '0.8rem', color: textSec, marginBottom: '8px', fontWeight: 'bold' }}>Filtrar Desempenho por Profissional:</label>
-        <select 
-          value={dashProfFilter} 
-          onChange={(e) => setDashProfFilter(e.target.value)}
-          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderCol}`, background: bgMain, color: textMain, outline: 'none', marginBottom: '16px', fontWeight: 'bold' }}
+      <div style={{ background: bgCard, padding: '14px', borderRadius: '12px', border: `1px solid ${borderCol}`, marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: bgMain, padding: '4px', borderRadius: '10px' }}>
+          {[
+            { id: 'dia', label: 'Dia' },
+            { id: 'mes', label: 'Mes' }
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setPeriodMode(item.id)}
+              style={{ border: 'none', borderRadius: '8px', padding: '10px', background: periodMode === item.id ? 'var(--primary-color, #e91e63)' : 'transparent', color: periodMode === item.id ? '#fff' : textSec, fontWeight: 900, cursor: 'pointer' }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <select
+          value={dashProfFilter}
+          onChange={(event) => setDashProfFilter(event.target.value)}
+          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderCol}`, background: bgInput, color: textMain, outline: 'none', fontWeight: 800 }}
         >
-          <option value="todos">Visão Geral do Estúdio (Todas)</option>
-          {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value="todos">Todas as profissionais</option>
+          {professionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
         </select>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={prevMonth} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-left"></i></button>
-          <h2 style={{ margin: 0, textTransform: 'capitalize', color: 'var(--primary-color, #e91e63)', fontSize: '1.1rem', fontWeight: '800' }}>{monthName}</h2>
-          <button onClick={nextMonth} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-right"></i></button>
+          <button onClick={() => navigatePeriod(-1)} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, width: '38px', height: '38px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-left"></i></button>
+          <h3 style={{ margin: 0, textTransform: 'capitalize', color: 'var(--primary-color, #e91e63)', fontSize: '1.02rem', fontWeight: 900, textAlign: 'center' }}>{periodTitle}</h3>
+          <button onClick={() => navigatePeriod(1)} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, width: '38px', height: '38px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-right"></i></button>
         </div>
       </div>
 
-      {/* MODO 1: VISÃO DE NÚMEROS */}
-      {viewMode === 'numeros' && (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
-            <div style={{ background: 'linear-gradient(135deg, var(--primary-color, #e91e63) 0%, #ff758c 100%)', borderRadius: '16px', padding: '24px', color: '#fff', boxShadow: '0 4px 15px rgba(233, 30, 99, 0.3)' }}>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '8px', fontWeight: '600' }}>Lucro Líquido</div>
-              <div style={{ fontSize: '2.2rem', fontWeight: '900' }}>R$ {lucroLiquido.toFixed(2)}</div>
-            </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ flex: 1, background: bgCard, borderRadius: '16px', padding: '16px', border: `1px solid ${borderCol}` }}>
-                <div style={{ fontSize: '0.8rem', color: textSec, fontWeight: 'bold' }}>Faturamento</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#10b981' }}>R$ {faturamentoBruto.toFixed(2)}</div>
-              </div>
-              <div style={{ flex: 1, background: bgCard, borderRadius: '16px', padding: '16px', border: `1px solid ${borderCol}` }}>
-                <div style={{ fontSize: '0.8rem', color: textSec, fontWeight: 'bold' }}>Custos</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#ef4444' }}>R$ {custosTotais.toFixed(2)}</div>
-              </div>
-            </div>
+      <div style={{ background: 'linear-gradient(135deg, var(--primary-color, #e91e63) 0%, #ff758c 100%)', borderRadius: '16px', padding: '22px', color: '#fff', boxShadow: '0 4px 15px rgba(233, 30, 99, 0.25)', marginBottom: '12px' }}>
+        <div style={{ fontSize: '0.82rem', opacity: 0.9, fontWeight: 800, textTransform: 'uppercase' }}>Lucro previsto</div>
+        <div style={{ fontSize: '2.05rem', fontWeight: 950, marginTop: '6px' }}>{formatCurrency(lucroPrevisto)}</div>
+        <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '4px' }}>{marginPercent.toFixed(1)}% de margem sobre comandas do periodo</div>
+        <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '4px' }}>Lucro concluido: {formatCurrency(lucroConcluido)} · Lucro recebido: {formatCurrency(lucroRecebido)}</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+        {[
+          { label: 'Previsto', value: formatCurrency(faturamentoPrevisto), color: '#10b981' },
+          { label: 'Resultado estudio', value: formatCurrency(studioResult), color: '#06b6d4' },
+          { label: 'Recebido', value: formatCurrency(totalRecebido), color: '#10b981' },
+          { label: 'Em aberto', value: formatCurrency(totalEmAberto), color: '#f59e0b' },
+          { label: 'Repasse prof.', value: formatCurrency(totalCommissionPayout), color: '#f59e0b' },
+          { label: 'Aluguel recebido', value: formatCurrency(totalRentShare), color: '#10b981' },
+          { label: 'Custos', value: formatCurrency(custosPrevistos), color: '#ef4444' },
+          { label: 'Ticket medio', value: formatCurrency(ticketMedio), color: textMain },
+          { label: 'Comandas', value: payableAppointments.length, color: textMain }
+        ].map((card) => (
+          <div key={card.label} style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}` }}>
+            <div style={{ fontSize: '0.75rem', color: textSec, fontWeight: 800, textTransform: 'uppercase' }}>{card.label}</div>
+            <div style={{ fontSize: '1.16rem', fontWeight: 900, color: card.color, marginTop: '5px' }}>{card.value}</div>
           </div>
-          
-          <h3 style={{ fontSize: '1rem', color: textMain, marginBottom: '16px', borderBottom: `1px solid ${borderCol}`, paddingBottom: '8px', fontWeight: 'bold' }}>
-            Comandas Fechadas ({validAppointments.length})
-          </h3>
-          {validAppointments.map(app => (
-            <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: bgCard, padding: '16px', borderRadius: '12px', border: `1px solid ${borderCol}`, marginBottom: '12px' }}>
-              <div>
-                <div style={{ fontWeight: 'bold', color: textMain, fontSize: '0.95rem' }}>{app.client_name}</div>
-                <div style={{ fontSize: '0.8rem', color: textSec, marginTop: '2px' }}>{app.date.split('-').reverse().join('/')} - {app.service}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: '900', color: '#10b981' }}>R$ {Number(app.total_price).toFixed(2)}</div>
-              </div>
+        ))}
+      </div>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Status do periodo</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {Object.entries(statusConfig).map(([status, config]) => (
+            <div key={status} style={{ border: `1px solid ${borderCol}`, borderLeft: `4px solid ${config.color}`, borderRadius: '10px', padding: '10px' }}>
+              <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 800 }}>{config.label}</div>
+              <strong style={{ color: textMain, fontSize: '1.15rem' }}>{statusCounts[status] || 0}</strong>
             </div>
           ))}
-        </>
-      )}
-
-      {/* MODO 2: VISÃO GRÁFICA (COLUNAS VERTICAIS) */}
-      {viewMode === 'grafico' && (
-        <div style={{ background: bgCard, padding: '24px 16px', borderRadius: '16px', border: `1px solid ${borderCol}` }}>
-          <h3 style={{ margin: '0 0 4px 0', color: textMain, fontSize: '1rem', fontWeight: 'bold', textAlign: 'center' }}>Comparativo de Receita</h3>
-          <p style={{ margin: '0 0 32px 0', color: textSec, fontSize: '0.8rem', textAlign: 'center' }}>Faturamento bruto por profissional (Mês vigente)</p>
-
-          {faturamentoBruto === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: textSec, fontStyle: 'italic' }}>
-              Sem dados financeiros registrados neste mês.
-            </div>
-          ) : (
-            // PALCO DO GRÁFICO (Flexbox alinhado por baixo)
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'flex-end', // Faz as colunas grudarem no chão
-              justifyContent: 'space-around', 
-              height: '250px', // Altura fixa do gráfico
-              paddingBottom: '10px', 
-              borderBottom: `2px solid ${borderCol}`, // A linha de base (o "chão")
-              marginTop: '20px' 
-            }}>
-              {chartData.map((data, idx) => {
-                const percentage = (data.value / maxChartValue) * 100;
-                
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px', height: '100%', justifyContent: 'flex-end' }}>
-                    
-                    {/* Valor financeiro coroando a barra */}
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: textMain }}>
-                      R$ {data.value.toFixed(0)}
-                    </span>
-                    
-                    {/* A COLUNA VERTICAL */}
-                    <div style={{
-                      width: 'clamp(30px, 10vw, 60px)', // Largura da barra responsiva
-                      height: `${percentage}%`, // A altura é definida pelo lucro!
-                      minHeight: '4px', // Garante que se for R$ 0,00, aparece um tracinho
-                      background: 'linear-gradient(to top, var(--primary-color, #e91e63) 0%, #ff758c 100%)',
-                      borderRadius: '6px 6px 0 0', // Arredonda só o topo
-                      transition: 'height 1s ease-in-out',
-                      boxShadow: '0 4px 10px rgba(233, 30, 99, 0.2)'
-                    }} />
-                    
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Eixo X: Nomes das profissionais embaixo das barras */}
-          {faturamentoBruto > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '12px' }}>
-              {chartData.map((data, idx) => (
-                <div key={`name-${idx}`} style={{ flex: 1, textAlign: 'center', fontSize: '0.75rem', color: textSec, fontWeight: '700' }}>
-                  {data.name.split(' ')[0]} {/* Pega apenas o 1º nome para não quebrar a tela */}
-                </div>
-              ))}
-            </div>
-          )}
-
         </div>
-      )}
+      </section>
 
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Pagamentos</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+          {[
+            { id: 'aberto', color: '#f59e0b' },
+            { id: 'sinal', color: '#3b82f6' },
+            { id: 'pago', color: '#10b981' }
+          ].map((item) => (
+            <div key={item.id} style={{ border: `1px solid ${borderCol}`, borderLeft: `4px solid ${item.color}`, borderRadius: '10px', padding: '10px' }}>
+              <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 800 }}>{paymentStatusLabel[item.id]}</div>
+              <strong style={{ color: textMain, fontSize: '1.15rem' }}>{paymentStatusCounts[item.id] || 0}</strong>
+            </div>
+          ))}
+        </div>
+
+        {paymentMethodRows.length === 0 ? (
+          <div style={{ color: textSec, fontSize: '0.84rem', textAlign: 'center', padding: '14px' }}>Nenhum recebimento registrado.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {paymentMethodRows.map((item) => (
+              <div key={item.method} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px', border: `1px solid ${borderCol}`, borderRadius: '10px' }}>
+                <span style={{ color: textMain, fontWeight: 900 }}>{paymentMethodLabel[item.method] || item.method}</span>
+                <span style={{ color: '#10b981', fontWeight: 900 }}>{formatCurrency(item.paid)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>A receber</h3>
+        {openReceivables.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '22px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Nenhuma pendencia de pagamento neste periodo.</div>
+        ) : (
+          openReceivables.slice(0, 12).map((appointment) => {
+            const professional = professionals.find((item) => item.id === appointment.professional_id)
+            return (
+              <div key={appointment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '11px 0', borderBottom: `1px solid ${borderCol}` }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: textMain, fontWeight: 900, fontSize: '0.9rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{appointment.client_name || 'Cliente'}</div>
+                  <div style={{ color: textSec, fontSize: '0.76rem', marginTop: '2px' }}>{shortDate(appointment.date)} · {appointment.service}</div>
+                  <div style={{ color: textSec, fontSize: '0.72rem', marginTop: '2px' }}>{professional?.name || 'Profissional'} · {paymentStatusLabel[appointment.payment_status] || 'Pagamento'}</div>
+                </div>
+                <strong style={{ color: '#f59e0b', flexShrink: 0 }}>{formatCurrency(getOpenAmount(appointment))}</strong>
+              </div>
+            )
+          })
+        )}
+      </section>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Estoque financeiro</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          <div style={{ border: `1px solid ${borderCol}`, borderRadius: '10px', padding: '10px' }}>
+            <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Custo em estoque</div>
+            <strong style={{ color: '#ef4444', fontSize: '1.05rem' }}>{formatCurrency(stockCostValue)}</strong>
+          </div>
+          <div style={{ border: `1px solid ${borderCol}`, borderRadius: '10px', padding: '10px' }}>
+            <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Potencial venda</div>
+            <strong style={{ color: '#10b981', fontSize: '1.05rem' }}>{formatCurrency(stockSaleValue)}</strong>
+          </div>
+        </div>
+
+        {lowStockProducts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '18px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Nenhum produto com estoque baixo.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {lowStockProducts.slice(0, 8).map((product) => (
+              <div key={product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px', border: `1px solid ${borderCol}`, borderLeft: '4px solid #f59e0b', borderRadius: '10px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: textMain, fontWeight: 900, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.name}</div>
+                  <div style={{ color: textSec, fontSize: '0.74rem', marginTop: '2px' }}>Custo {formatCurrency(product.cost)} · Venda {formatCurrency(product.price)}</div>
+                </div>
+                <strong style={{ color: '#f59e0b', flexShrink: 0 }}>{product.stock_quantity || 0} un.</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 6px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Regras das profissionais</h3>
+        <p style={{ color: textSec, fontSize: '0.78rem', margin: '0 0 12px' }}>
+          Configure como cada profissional entra no resultado do estudio.
+        </p>
+
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {professionals.map((professional) => {
+            const draft = compDrafts[professional.id] || {
+              compensation_type: professional.compensation_type || 'studio',
+              commission_percent: professional.commission_percent ?? 0,
+              monthly_rent_share: professional.monthly_rent_share ?? 0
+            }
+
+            return (
+              <div key={professional.id} style={{ border: `1px solid ${borderCol}`, borderRadius: '12px', padding: '12px', display: 'grid', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                  <strong style={{ color: textMain }}>{professional.name}</strong>
+                  <span style={{ color: textSec, fontSize: '0.72rem', fontWeight: 800 }}>{compensationTypeLabel[draft.compensation_type] || 'Regra'}</span>
+                </div>
+
+                <select
+                  value={draft.compensation_type}
+                  onChange={(event) => handleCompDraftChange(professional.id, { compensation_type: event.target.value })}
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: `1px solid ${borderCol}`, background: bgInput, color: textMain, outline: 'none', fontWeight: 800 }}
+                >
+                  <option value="studio">Estudio fica com o faturamento</option>
+                  <option value="commission">Porcentagem profissional/estudio</option>
+                  <option value="rent_share">Aluguel / divisao de custo mensal</option>
+                </select>
+
+                {draft.compensation_type === 'commission' && (
+                  <label style={{ color: textSec, fontSize: '0.78rem', fontWeight: 800 }}>
+                    % da profissional
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={draft.commission_percent}
+                      onChange={(event) => handleCompDraftChange(professional.id, { commission_percent: event.target.value })}
+                      style={{ width: '100%', marginTop: '6px', padding: '11px', borderRadius: '8px', border: `1px solid ${borderCol}`, background: bgInput, color: textMain, outline: 'none' }}
+                    />
+                  </label>
+                )}
+
+                {draft.compensation_type === 'rent_share' && (
+                  <label style={{ color: textSec, fontSize: '0.78rem', fontWeight: 800 }}>
+                    Valor mensal pago ao estudio
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={draft.monthly_rent_share}
+                      onChange={(event) => handleCompDraftChange(professional.id, { monthly_rent_share: event.target.value })}
+                      style={{ width: '100%', marginTop: '6px', padding: '11px', borderRadius: '8px', border: `1px solid ${borderCol}`, background: bgInput, color: textMain, outline: 'none' }}
+                    />
+                  </label>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveCompensation(professional.id)}
+                  disabled={savingProfessionalId === professional.id}
+                  style={{ border: 'none', borderRadius: '8px', padding: '11px', background: 'var(--primary-color, #e91e63)', color: '#fff', fontWeight: 900, cursor: 'pointer', opacity: savingProfessionalId === professional.id ? 0.7 : 1 }}
+                >
+                  {savingProfessionalId === professional.id ? 'Salvando...' : 'Salvar regra'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Desempenho por profissional</h3>
+
+        {professionalFinanceRows.length === 0 || faturamentoPrevisto === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 0', color: textSec }}>Sem comandas neste periodo.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[...professionalFinanceRows].sort((a, b) => b.revenue - a.revenue).map((item) => (
+              <div key={item.id}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: textMain, fontSize: '0.88rem', fontWeight: 900 }}>
+                  <span>{item.name}</span>
+                  <span>{formatCurrency(item.revenue)}</span>
+                </div>
+                <div style={{ height: '8px', background: isLight ? '#eee' : '#2f2f2f', borderRadius: '999px', overflow: 'hidden', marginTop: '7px' }}>
+                  <div style={{ width: `${Math.max((item.revenue / maxRevenue) * 100, 4)}%`, height: '100%', background: 'var(--primary-color, #e91e63)', borderRadius: '999px' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: textSec, fontSize: '0.76rem', marginTop: '5px' }}>
+                  <span>{item.count} comandas · recebido {formatCurrency(item.received)}</span>
+                  <span>Studio {formatCurrency(item.studioResult)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Ultimas comandas</h3>
+        {payableAppointments.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px', color: textSec, background: bgCard, borderRadius: '12px', border: `1px dashed ${borderCol}` }}>Nenhuma comanda neste periodo.</div>
+        ) : (
+          payableAppointments.slice(0, 12).map((appointment) => {
+            const professional = professionals.find((item) => item.id === appointment.professional_id)
+            return (
+              <div key={appointment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: bgCard, padding: '13px', borderRadius: '12px', border: `1px solid ${borderCol}`, marginBottom: '10px', gap: '12px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 900, color: textMain, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.client_name}</div>
+                  <div style={{ fontSize: '0.78rem', color: textSec, marginTop: '2px' }}>{shortDate(appointment.date)} - {appointment.service}</div>
+                  <div style={{ fontSize: '0.74rem', color: textSec, marginTop: '2px' }}>{professional?.name || 'Profissional'} · {statusConfig[appointment.status]?.label || appointment.status}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 900, color: '#10b981' }}>{formatCurrency(appointment.total_price)}</div>
+                  <div style={{ fontSize: '0.74rem', color: textSec }}>Recebido {formatCurrency(getPaidAmount(appointment))}</div>
+                  <div style={{ fontSize: '0.74rem', color: getOpenAmount(appointment) > 0 ? '#f59e0b' : textSec }}>Aberto {formatCurrency(getOpenAmount(appointment))}</div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </section>
     </div>
-  );
+  )
 }

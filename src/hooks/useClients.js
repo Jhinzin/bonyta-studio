@@ -20,8 +20,10 @@ export function useClients() {
     const { data, error } = await supabase.from('clients').insert([clientData]).select();
     if (!error) {
       setClients(prev => [...prev, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
+      return data[0];
     } else {
       console.error('Erro ao salvar cliente:', error);
+      throw error;
     }
   };
 

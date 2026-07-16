@@ -1,8 +1,6 @@
 -- Bonyta Studio: base gratuita e segura para agenda, catálogo e painel interno.
 -- Antes de executar, crie pelo menos um usuário em Authentication > Users.
 
-create extension if not exists "pgcrypto";
-
 alter table public.professionals
   add column if not exists specialty text,
   add column if not exists active boolean not null default true;

@@ -64,6 +64,15 @@ export function useAppointments() {
     await loadAll()
   }
 
+  const updateProfessional = async (id, payload) => {
+    const { error: updateError } = await supabase
+      .from('professionals')
+      .update(payload)
+      .eq('id', id)
+    if (updateError) throw updateError
+    await loadAll()
+  }
+
   return {
     professionals,
     appointments,
@@ -73,6 +82,7 @@ export function useAppointments() {
     updateAppointment,
     deleteAppointment,
     createProfessional,
+    updateProfessional,
     reload: loadAll
   }
 }

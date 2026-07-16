@@ -11,8 +11,9 @@ Esta versão foi organizada para funcionar com serviços gratuitos enquanto o vo
 
 Rotas:
 
-- `/` e `/agendar`: landing pública com catálogo e solicitação pelo WhatsApp.
-- `/app`: painel interno protegido por e-mail e senha.
+- `/`: app de agenda da equipe, protegido por e-mail e senha.
+- `/app`: atalho alternativo para o mesmo app interno.
+- `/agendar`: landing pública com catálogo e solicitação pelo WhatsApp.
 
 ### Ativar a base segura
 

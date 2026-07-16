@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAppointments } from './hooks/useAppointments'
 import { useClients } from './hooks/useClients'
+import { useProducts } from './hooks/useProducts'
+import { useBookingRequests } from './hooks/useBookingRequests'
 import { useServices } from './hooks/useServices'
+import { useWaitlist } from './hooks/useWaitlist'
 import { formatDateToISO } from './utils'
+import { onlyDigits } from './utils/whatsapp'
 import Header from './components/Header'
 import WeekDaysStrip from './components/WeekDaysStrip'
 import DayView from './components/DayView'
@@ -12,6 +16,8 @@ import BottomNav from './components/BottomNav'
 import AppointmentModal from './components/AppointmentModal'
 import ServicesView from './components/ServicesView'
 import ClientsView from './components/ClientsView'
+import BookingRequestsModal from './components/BookingRequestsModal'
+import DailyCenterModal from './components/DailyCenterModal'
 import WaitlistModal from './components/WaitlistModal'
 import BlockModal from './components/BlockModal'
 import DashboardView from './components/DashboardView'
@@ -20,11 +26,16 @@ import PublicBookingView from './components/PublicBookingView';
 import AuthGate from './components/AuthGate';
 
 export default function App() {
-  if (window.location.pathname.startsWith('/app')) {
-    return <AuthGate><StudioApp /></AuthGate>
-  }
+  const isPublicBooking = window.location.pathname.startsWith('/agendar')
 
-  return <PublicBookingView />
+  useEffect(() => {
+    document.title = isPublicBooking
+      ? 'Bonyta Studio | Agende seu horário'
+      : 'Bonyta Studio - Agenda'
+  }, [isPublicBooking])
+
+  if (isPublicBooking) return <PublicBookingView />
+  return <AuthGate><StudioApp /></AuthGate>
 }
 
 function StudioApp() {
@@ -35,7 +46,8 @@ function StudioApp() {
   const [theme, setTheme] = useState('dark')
   const [view, setView] = useState('dia')
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
-  const [waitlist, setWaitlist] = useState([]); // No futuro ligaremos ao Supabase
+  const [bookingRequestsModalOpen, setBookingRequestsModalOpen] = useState(false);
+  const [dailyCenterModalOpen, setDailyCenterModalOpen] = useState(false);
   const [profFilter, setProfFilter] = useState('todos')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [modalOpen, setModalOpen] = useState(false)
@@ -47,22 +59,36 @@ function StudioApp() {
   // COLE ESTAS LINHAS AQUI NO TOPO, JUNTO COM SEUS OUTROS USESTATES!
   // Isso vai dar vida aos seletores de Clientes e Serviços até ligarmos o banco.
   // ====================================================================
-  const { clients } = useClients()
+  const { clients, createClient } = useClients()
   const { services } = useServices()
+  const { products } = useProducts()
+  const {
+    waitlist,
+    loading: waitlistLoading,
+    error: waitlistError,
+    addWaitlistEntry,
+    removeWaitlistEntry
+  } = useWaitlist()
+  const {
+    requests: bookingRequests,
+    loading: bookingRequestsLoading,
+    error: bookingRequestsError,
+    updateRequestStatus
+  } = useBookingRequests()
   // ====================================================================
   
 
   // MÁGICA UI/UX: Sempre que voltar para a aba da Agenda, força o retorno para o Dia de Hoje
   useEffect(() => {
-    if (activeTab === 'agenda') {
+    if (activeTab === 'agenda' && !prefill?.date) {
       setSelectedDate(new Date()); // Reseta a data para o dia atual real
       setView('dia');             // Garante que abre na visão diária padronizada
     }
-  }, [activeTab]);
+  }, [activeTab, prefill?.date]);
 
   const {
     professionals, appointments, loading, error,
-    createAppointment, updateAppointment, deleteAppointment, createProfessional
+    createAppointment, updateAppointment, deleteAppointment, createProfessional, updateProfessional
   } = useAppointments()
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
@@ -79,14 +105,6 @@ function StudioApp() {
       }
       return nd;
     });
-  };
-
-  const handleAddWaitlist = (item) => {
-    setWaitlist([...waitlist, { id: Date.now(), ...item }]);
-  };
-  
-  const handleRemoveWaitlist = (id) => {
-    setWaitlist(waitlist.filter(w => w.id !== id));
   };
 
   const openNewModal = (prefillData = null) => {
@@ -133,6 +151,9 @@ const handleSubmit = async (appointmentData) => {
         // Armazena os valores financeiros totais (Serviço + Produtos da Comanda)
         total_price: Number(appointmentData.total_price || 0),
         total_cost: Number(appointmentData.total_cost || 0),
+        amount_paid: Number(appointmentData.amount_paid || 0),
+        payment_method: appointmentData.payment_method || 'nao_informado',
+        payment_status: appointmentData.payment_status || 'aberto',
         
         // Salva a lista de produtos extras como um texto (JSON) para o banco guardar tudo em uma linha só
         comanda_json: appointmentData.comanda ? JSON.stringify(appointmentData.comanda) : null
@@ -146,6 +167,10 @@ const handleSubmit = async (appointmentData) => {
         await createAppointment(payload)
       }
 
+      if (!recordId && appointmentData.booking_request_id) {
+        await updateRequestStatus(appointmentData.booking_request_id, 'scheduled')
+      }
+
     } catch (err) {
       console.error('Erro ao salvar no Supabase:', err)
       throw err
@@ -153,6 +178,47 @@ const handleSubmit = async (appointmentData) => {
   };
 
   // Certifique-se de limpar os estados de edição ao fechar os modais
+  const defaultTimeByPeriod = (period) => {
+    if (period === 'manha') return '09:00'
+    if (period === 'noite') return '18:00'
+    return '14:00'
+  }
+
+  const openAppointmentFromBookingRequest = async (request) => {
+    const requestPhone = onlyDigits(request.customer_phone)
+    const existingClient = clients.find((client) => (
+      requestPhone && onlyDigits(client.phone) === requestPhone
+    )) || clients.find((client) => (
+      String(client.name || '').trim().toLowerCase() === String(request.customer_name || '').trim().toLowerCase()
+    ))
+
+    const client = existingClient || await createClient({
+      name: request.customer_name,
+      phone: request.customer_phone,
+      observation: 'Cliente captada pela pagina publica /agendar.'
+    })
+
+    const selectedService = services.find((service) => String(service.id) === String(request.service_id))
+    const nextDate = new Date(`${request.preferred_date}T12:00:00`)
+
+    setSelectedDate(nextDate)
+    setView('dia')
+    setActiveTab('agenda')
+    setBookingRequestsModalOpen(false)
+    setEditingAppointment(null)
+    setPrefill({
+      booking_request_id: request.id,
+      client_id: client.id,
+      service_id: request.service_id || '',
+      professional_id: request.professional_id || professionals[0]?.id || '',
+      date: request.preferred_date,
+      time: defaultTimeByPeriod(request.preferred_period),
+      duration_minutes: selectedService?.duration_minutes || 60,
+      observation: request.note ? `Pedido do site: ${request.note}` : 'Pedido vindo pelo site /agendar.'
+    })
+    setModalOpen(true)
+  }
+
   const handleCloseBlockModal = () => {
     setBlockModalOpen(false);
     setEditingBlock(null);
@@ -214,13 +280,14 @@ const handleSubmit = async (appointmentData) => {
                     appointments={appointments}
                     selectedDate={selectedDate}
                     profFilter={profFilter}
-                    onSlotClick={(prof, hour) =>
+                    onSlotClick={(prof, time) =>
                       openNewModal({
                         professional_id: prof.id,
-                        time: `${String(hour).padStart(2, '0')}:00`
+                        time
                       })
                     }
                     onCardClick={openEditModal}
+                    onToday={() => setSelectedDate(new Date())}
                   />
                 </section>
 
@@ -275,6 +342,8 @@ const handleSubmit = async (appointmentData) => {
         <DashboardView 
           appointments={appointments} 
           professionals={professionals} 
+          products={products}
+          onUpdateProfessional={updateProfessional}
           theme={theme} 
         />
       )}
@@ -286,6 +355,40 @@ const handleSubmit = async (appointmentData) => {
         {isFabOpen && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px', alignItems: 'flex-end' }}>
             
+            {/* Solicitações vindas da landing pública */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                Solicitações do Site {bookingRequests.length > 0 ? `(${bookingRequests.length})` : ''}
+              </span>
+              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  onClick={() => { setBookingRequestsModalOpen(true); setIsFabOpen(false); }}
+                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: 'var(--primary-color, #e91e63)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', position: 'relative' }}
+                >
+                  <i className="fa-solid fa-inbox"></i>
+                  {bookingRequests.length > 0 && (
+                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '999px', background: '#f59e0b', color: '#fff', fontSize: '0.65rem', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
+                      {bookingRequests.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                Central do Dia
+              </span>
+              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  onClick={() => { setDailyCenterModalOpen(true); setIsFabOpen(false); }}
+                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#06b6d4', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
+                >
+                  <i className="fa-solid fa-bell"></i>
+                </button>
+              </div>
+            </div>
 
             {/* NOVO: Adicionar Profissional */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -390,6 +493,8 @@ const handleSubmit = async (appointmentData) => {
         theme={theme}
         clients={clients}
         services={services}
+        products={products}
+        appointments={appointments}
       />
 
        {/* =========================================
@@ -418,11 +523,38 @@ const handleSubmit = async (appointmentData) => {
         defaultDate={formatDateToISO(selectedDate)}
         theme={theme}
         waitlist={waitlist}
-        onAdd={handleAddWaitlist}
-        onRemove={handleRemoveWaitlist}
+        loading={waitlistLoading}
+        error={waitlistError}
+        onAdd={addWaitlistEntry}
+        onRemove={removeWaitlistEntry}
       />
 
-     {/* 8. MODAL DE NOVA PROFISSIONAL */}
+      {/* 8. MODAL DE SOLICITAÇÕES DA LANDING */}
+      <BookingRequestsModal
+        open={bookingRequestsModalOpen}
+        onClose={() => setBookingRequestsModalOpen(false)}
+        theme={theme}
+        requests={bookingRequests}
+        services={services}
+        professionals={professionals}
+        loading={bookingRequestsLoading}
+        error={bookingRequestsError}
+        onUpdateStatus={updateRequestStatus}
+        onCreateAppointment={openAppointmentFromBookingRequest}
+      />
+
+      <DailyCenterModal
+        open={dailyCenterModalOpen}
+        onClose={() => setDailyCenterModalOpen(false)}
+        theme={theme}
+        selectedDate={selectedDate}
+        appointments={appointments}
+        clients={clients}
+        professionals={professionals}
+        onUpdateAppointment={updateAppointment}
+      />
+
+     {/* 9. MODAL DE NOVA PROFISSIONAL */}
       <ProfessionalModal
         open={profModalOpen}
         onClose={() => setProfModalOpen(false)}

@@ -60,9 +60,6 @@ export default function AuthGate({ children }) {
   return (
     <>
       {children}
-      <button className="auth-signout" type="button" onClick={() => supabase.auth.signOut()} title="Sair do painel">
-        <i className="fa-solid fa-arrow-right-from-bracket" />
-      </button>
     </>
   )
 }

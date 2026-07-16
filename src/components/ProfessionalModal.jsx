@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 
 export default function ProfessionalModal({ open, onClose, onSubmit, theme }) {
-  const [form, setForm] = useState({ name: '', role: 'Nail Designer', color: '#e91e63' });
+  const [form, setForm] = useState({
+    name: '',
+    role: 'Nail Designer',
+    color: '#e91e63',
+    compensation_type: 'studio',
+    commission_percent: 0,
+    monthly_rent_share: 0
+  });
   const [saving, setSaving] = useState(false);
 
   if (!open) return null;
@@ -25,9 +32,12 @@ export default function ProfessionalModal({ open, onClose, onSubmit, theme }) {
       await onSubmit({
         name: form.name,
         specialty: form.role,
-        style_class: 'pink'
+        style_class: 'pink',
+        compensation_type: form.compensation_type,
+        commission_percent: Number(form.commission_percent || 0),
+        monthly_rent_share: Number(form.monthly_rent_share || 0)
       });
-      setForm({ name: '', role: 'Nail Designer', color: '#e91e63' });
+      setForm({ name: '', role: 'Nail Designer', color: '#e91e63', compensation_type: 'studio', commission_percent: 0, monthly_rent_share: 0 });
       onClose();
     } catch (err) {
       alert("Erro ao adicionar profissional.");
@@ -65,6 +75,42 @@ export default function ProfessionalModal({ open, onClose, onSubmit, theme }) {
             <option value="Esteticista">Esteticista</option>
             <option value="Cabeleireira">Cabeleireira</option>
           </select>
+
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>Acerto financeiro</label>
+          <select value={form.compensation_type} onChange={e => setForm({...form, compensation_type: e.target.value})} style={inputStyle}>
+            <option value="studio">Fixo do estudio / sem repasse</option>
+            <option value="commission">Porcentagem</option>
+            <option value="rent_share">Aluguel / divisao de custo</option>
+          </select>
+
+          {form.compensation_type === 'commission' && (
+            <>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>% da profissional</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={form.commission_percent}
+                onChange={e => setForm({...form, commission_percent: e.target.value})}
+                style={inputStyle}
+              />
+            </>
+          )}
+
+          {form.compensation_type === 'rent_share' && (
+            <>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>Valor mensal pago ao estudio</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.monthly_rent_share}
+                onChange={e => setForm({...form, monthly_rent_share: e.target.value})}
+                style={inputStyle}
+              />
+            </>
+          )}
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', background: 'transparent', border: `1px solid ${borderCol}`, color: textMain, borderRadius: '8px', cursor: 'pointer' }}>
