@@ -1,0 +1,5 @@
+project_id = "bonyta-studio"
+
+[functions.bonyta-assistant]
+verify_jwt = false
+

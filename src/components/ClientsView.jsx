@@ -34,8 +34,8 @@ const nextBirthdayLabel = (birthDate) => {
   if (nextBirthday < today) nextBirthday.setFullYear(today.getFullYear() + 1)
 
   const diffDays = Math.round((nextBirthday - today) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Aniversario hoje'
-  if (diffDays <= 30) return `Aniversario em ${diffDays} dias`
+  if (diffDays === 0) return 'Aniversário hoje'
+  if (diffDays <= 30) return `Aniversário em ${diffDays} dias`
   return null
 }
 
@@ -148,7 +148,7 @@ export default function ClientsView({ theme }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar por nome, telefone ou observacao..."
+          placeholder="Buscar por nome, telefone ou observação..."
           style={{ ...inputStyle, paddingLeft: '40px' }}
         />
       </div>
@@ -218,7 +218,7 @@ export default function ClientsView({ theme }) {
             <div style={{ padding: '20px', borderBottom: `1px solid ${borderCol}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: textMain, margin: 0 }}>{editingClient ? 'Ficha da cliente' : 'Nova cliente'}</h3>
-                <p style={{ color: textSec, fontSize: '0.78rem', marginTop: '4px' }}>Dados, preferencias e alertas do atendimento</p>
+                <p style={{ color: textSec, fontSize: '0.78rem', marginTop: '4px' }}>Dados, preferências e alertas do atendimento</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} style={{ width: '38px', height: '38px', borderRadius: '50%', border: `1px solid ${borderCol}`, background: bgCard, color: textMain, cursor: 'pointer' }}>
                 <i className="fa-solid fa-times"></i>
@@ -240,7 +240,7 @@ export default function ClientsView({ theme }) {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec }}>Aniversario</label>
+                      <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec }}>Aniversário</label>
                       <input type="date" value={formData.birth_date || ''} onChange={(event) => setFormData({ ...formData, birth_date: event.target.value })} style={inputStyle} />
                     </div>
                     <div>
@@ -251,12 +251,12 @@ export default function ClientsView({ theme }) {
                 </section>
 
                 <section style={{ background: bgCard, border: `1px solid ${borderCol}`, borderRadius: '12px', padding: '14px' }}>
-                  <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec, fontWeight: 800 }}>Anamnese, preferencias e alertas</label>
+                  <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec, fontWeight: 800 }}>Anamnese, preferências e alertas</label>
                   <textarea
                     rows="5"
                     value={formData.observation || ''}
                     onChange={(event) => setFormData({ ...formData, observation: event.target.value })}
-                    placeholder="Ex: alergia a produto, unha sensivel, prefere formato amendoado, nao usar cabine forte, sinal pago..."
+                    placeholder="Ex: alergia a produto, unha sensível, prefere formato amendoado, não usar cabine forte, sinal pago..."
                     style={{ ...inputStyle, resize: 'none', lineHeight: 1.4 }}
                   />
                 </section>
@@ -266,7 +266,7 @@ export default function ClientsView({ theme }) {
                   onClick={() => setShowMoreFields(!showMoreFields)}
                   style={{ background: 'transparent', border: `1px solid ${borderCol}`, color: textSec, padding: '11px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}
                 >
-                  {showMoreFields ? 'Ocultar dados extras' : 'Mostrar email e endereco'}
+                  {showMoreFields ? 'Ocultar dados extras' : 'Mostrar e-mail e endereço'}
                 </button>
 
                 {showMoreFields && (
@@ -276,7 +276,7 @@ export default function ClientsView({ theme }) {
                       <input type="email" value={formData.email || ''} onChange={(event) => setFormData({ ...formData, email: event.target.value })} style={inputStyle} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec }}>Endereco</label>
+                      <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.84rem', color: textSec }}>Endereço</label>
                       <input type="text" value={formData.address || ''} onChange={(event) => setFormData({ ...formData, address: event.target.value })} style={inputStyle} />
                     </div>
                   </section>

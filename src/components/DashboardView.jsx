@@ -51,7 +51,43 @@ const shortDate = (date) => {
   return day && month && year ? `${day}/${month}/${year}` : date
 }
 
-export default function DashboardView({ appointments, professionals, products = [], onUpdateProfessional, theme }) {
+const normalizeText = (value) => (
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+)
+
+const getAppointmentCategory = (appointment, professional) => {
+  const text = normalizeText(`${appointment.service || ''} ${professional?.specialty || ''} ${professional?.name || ''}`)
+
+  if (text.includes('cilio') || text.includes('volume brasileiro') || text.includes('bonyta fox') || text.includes('sphinx')) {
+    return 'Cílios'
+  }
+
+  if (text.includes('sobrancelha') || text.includes('brow') || text.includes('henna') || text.includes('depilacao') || text.includes('buco')) {
+    return 'Sobrancelhas'
+  }
+
+  if (
+    text.includes('unha') ||
+    text.includes('gel') ||
+    text.includes('fibra') ||
+    text.includes('molde') ||
+    text.includes('esmaltacao') ||
+    text.includes('reconstrucao') ||
+    text.includes('decoracao') ||
+    text.includes('remocao') ||
+    text.includes('postica') ||
+    text.includes('nail')
+  ) {
+    return 'Unhas'
+  }
+
+  return 'Outros'
+}
+
+export default function DashboardView({ appointments, professionals, products = [], onUpdateProfessional, theme, accessMode = 'owner', currentProfessionalId = null }) {
   const [refDate, setRefDate] = useState(new Date())
   const [periodMode, setPeriodMode] = useState('mes')
   const [dashProfFilter, setDashProfFilter] = useState('todos')
@@ -65,6 +101,8 @@ export default function DashboardView({ appointments, professionals, products = 
   const bgCard = isLight ? '#ffffff' : '#1e1e1e'
   const borderCol = isLight ? '#eee' : '#333'
   const bgInput = isLight ? '#ffffff' : '#151515'
+  const professionalMode = accessMode === 'professional'
+  const effectiveProfessionalId = currentProfessionalId || professionals[0]?.id || ''
 
   useEffect(() => {
     setCompDrafts((current) => {
@@ -81,6 +119,12 @@ export default function DashboardView({ appointments, professionals, products = 
       return next
     })
   }, [professionals])
+
+  useEffect(() => {
+    if (professionalMode && effectiveProfessionalId) {
+      setDashProfFilter(effectiveProfessionalId)
+    }
+  }, [professionalMode, effectiveProfessionalId])
 
   const monthName = refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
   const dayName = refDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
@@ -102,9 +146,12 @@ export default function DashboardView({ appointments, professionals, products = 
       .filter((appointment) => periodMode === 'mes'
         ? appointment.date?.startsWith(currentMonthISO)
         : appointment.date === currentDayISO)
-      .filter((appointment) => dashProfFilter === 'todos' || appointment.professional_id === dashProfFilter)
+      .filter((appointment) => {
+        if (professionalMode && effectiveProfessionalId) return appointment.professional_id === effectiveProfessionalId
+        return dashProfFilter === 'todos' || appointment.professional_id === dashProfFilter
+      })
       .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
-  ), [appointments, currentDayISO, currentMonthISO, dashProfFilter, periodMode])
+  ), [appointments, currentDayISO, currentMonthISO, dashProfFilter, effectiveProfessionalId, periodMode, professionalMode])
 
   const payableAppointments = scopedAppointments.filter((appointment) => appointment.status !== 'faltou')
   const closedAppointments = scopedAppointments.filter((appointment) => appointment.status === 'concluido')
@@ -120,6 +167,50 @@ export default function DashboardView({ appointments, professionals, products = 
   const lucroRecebido = totalRecebido - custosPrevistos
   const ticketMedio = faturamentoPrevisto / Math.max(payableAppointments.length, 1)
   const marginPercent = faturamentoPrevisto > 0 ? (lucroPrevisto / faturamentoPrevisto) * 100 : 0
+
+  const ticketCategoryRows = Object.values(payableAppointments.reduce((acc, appointment) => {
+    const professional = professionals.find((item) => item.id === appointment.professional_id)
+    const category = getAppointmentCategory(appointment, professional)
+    if (!acc[category]) acc[category] = { category, count: 0, revenue: 0, received: 0 }
+    acc[category].count += 1
+    acc[category].revenue += Number(appointment.total_price || 0)
+    acc[category].received += getPaidAmount(appointment)
+    return acc
+  }, {}))
+    .map((item) => ({
+      ...item,
+      ticket: item.revenue / Math.max(item.count, 1)
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  const ticketProfessionalRows = professionals
+    .filter((professional) => dashProfFilter === 'todos' || professional.id === dashProfFilter)
+    .map((professional) => {
+      const profAppointments = payableAppointments.filter((appointment) => appointment.professional_id === professional.id)
+      const revenue = profAppointments.reduce((sum, appointment) => sum + Number(appointment.total_price || 0), 0)
+      const mainCategory = Object.values(profAppointments.reduce((acc, appointment) => {
+        const category = getAppointmentCategory(appointment, professional)
+        acc[category] = (acc[category] || 0) + 1
+        return acc
+      }, {})).length
+        ? Object.entries(profAppointments.reduce((acc, appointment) => {
+            const category = getAppointmentCategory(appointment, professional)
+            acc[category] = (acc[category] || 0) + 1
+            return acc
+          }, {})).sort((a, b) => b[1] - a[1])[0][0]
+        : professional.specialty || 'Sem atendimentos'
+
+      return {
+        id: professional.id,
+        name: professional.name,
+        category: mainCategory,
+        count: profAppointments.length,
+        revenue,
+        ticket: revenue / Math.max(profAppointments.length, 1)
+      }
+    })
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.ticket - a.ticket)
 
   const paymentStatusCounts = payableAppointments.reduce((acc, appointment) => {
     const status = appointment.payment_status || 'aberto'
@@ -186,6 +277,14 @@ export default function DashboardView({ appointments, professionals, products = 
   const totalCommissionPayout = professionalFinanceRows.reduce((sum, item) => sum + item.commissionPayout, 0)
   const totalRentShare = professionalFinanceRows.reduce((sum, item) => sum + item.rentShare, 0)
   const studioResult = professionalFinanceRows.reduce((sum, item) => sum + item.studioResult, 0)
+  const currentProfessionalFinance = professionalFinanceRows.find((item) => item.id === effectiveProfessionalId) || professionalFinanceRows[0]
+  const currentProfessionalPayout = currentProfessionalFinance
+    ? currentProfessionalFinance.compensationType === 'commission'
+      ? currentProfessionalFinance.commissionPayout
+      : currentProfessionalFinance.compensationType === 'rent_share'
+        ? Math.max(currentProfessionalFinance.revenue - currentProfessionalFinance.rentShare, 0)
+        : currentProfessionalFinance.received
+    : 0
 
   const ranking = professionals
     .filter((professional) => dashProfFilter === 'todos' || professional.id === dashProfFilter)
@@ -231,6 +330,88 @@ export default function DashboardView({ appointments, professionals, products = 
     } finally {
       setSavingProfessionalId(null)
     }
+  }
+
+  if (professionalMode) {
+    const professionalName = currentProfessionalFinance?.name || professionals[0]?.name || 'profissional'
+
+    return (
+      <div style={{ padding: '20px', paddingBottom: '100px', background: bgMain, height: '100%', overflowY: 'auto' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: textMain, margin: 0 }}>Meus ganhos</h2>
+          <p style={{ color: textSec, fontSize: '0.82rem', marginTop: '4px' }}>
+            Visão da {professionalName}: atendimentos, recebidos e valores em aberto.
+          </p>
+        </div>
+
+        <div style={{ background: bgCard, padding: '14px', borderRadius: '12px', border: `1px solid ${borderCol}`, marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: bgMain, padding: '4px', borderRadius: '10px' }}>
+            {[
+              { id: 'dia', label: 'Dia' },
+              { id: 'mes', label: 'Mês' }
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setPeriodMode(item.id)}
+                style={{ border: 'none', borderRadius: '8px', padding: '10px', background: periodMode === item.id ? 'var(--primary-color, #e91e63)' : 'transparent', color: periodMode === item.id ? '#fff' : textSec, fontWeight: 900, cursor: 'pointer' }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button onClick={() => navigatePeriod(-1)} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, width: '38px', height: '38px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-left"></i></button>
+            <h3 style={{ margin: 0, textTransform: 'capitalize', color: 'var(--primary-color, #e91e63)', fontSize: '1.02rem', fontWeight: 900, textAlign: 'center' }}>{periodTitle}</h3>
+            <button onClick={() => navigatePeriod(1)} style={{ background: bgMain, border: `1px solid ${borderCol}`, color: textMain, width: '38px', height: '38px', borderRadius: '8px', cursor: 'pointer' }}><i className="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div style={{ background: 'linear-gradient(135deg, var(--primary-color, #e91e63) 0%, #ff758c 100%)', borderRadius: '16px', padding: '22px', color: '#fff', boxShadow: '0 4px 15px rgba(233, 30, 99, 0.25)', marginBottom: '12px' }}>
+          <div style={{ fontSize: '0.82rem', opacity: 0.9, fontWeight: 800, textTransform: 'uppercase' }}>Meu valor estimado</div>
+          <div style={{ fontSize: '2.05rem', fontWeight: 950, marginTop: '6px' }}>{formatCurrency(currentProfessionalPayout)}</div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '4px' }}>
+            Baseado nos atendimentos do período. A confirmação final fica com a administração.
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+          {[
+            { label: 'Atendimentos', value: payableAppointments.length, color: textMain },
+            { label: 'Recebido', value: formatCurrency(totalRecebido), color: '#10b981' },
+            { label: 'Em aberto', value: formatCurrency(totalEmAberto), color: '#f59e0b' },
+            { label: 'Concluídos', value: closedAppointments.length, color: '#10b981' }
+          ].map((card) => (
+            <div key={card.label} style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}` }}>
+              <div style={{ fontSize: '0.75rem', color: textSec, fontWeight: 800, textTransform: 'uppercase' }}>{card.label}</div>
+              <div style={{ fontSize: '1.16rem', fontWeight: 900, color: card.color, marginTop: '5px' }}>{card.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+          <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Meus atendimentos</h3>
+          {payableAppointments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Nenhum atendimento neste período.</div>
+          ) : (
+            payableAppointments.slice(0, 14).map((appointment) => (
+              <div key={appointment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `1px solid ${borderCol}` }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: textMain, fontWeight: 900, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.client_name || 'Cliente'}</div>
+                  <div style={{ color: textSec, fontSize: '0.76rem', marginTop: '2px' }}>{shortDate(appointment.date)} · {String(appointment.time || '').slice(0, 5)} · {appointment.service}</div>
+                  <div style={{ color: textSec, fontSize: '0.72rem', marginTop: '2px' }}>{statusConfig[appointment.status]?.label || appointment.status} · {paymentStatusLabel[appointment.payment_status] || 'Pagamento'}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 900, color: '#10b981' }}>{formatCurrency(getPaidAmount(appointment))}</div>
+                  {getOpenAmount(appointment) > 0 && <div style={{ fontSize: '0.74rem', color: '#f59e0b' }}>Aberto {formatCurrency(getOpenAmount(appointment))}</div>}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      </div>
+    )
   }
 
   return (
@@ -298,6 +479,57 @@ export default function DashboardView({ appointments, professionals, products = 
           </div>
         ))}
       </div>
+
+      <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
+        <h3 style={{ margin: '0 0 6px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Ticket médio separado</h3>
+        <p style={{ color: textSec, fontSize: '0.78rem', margin: '0 0 12px' }}>
+          Separado por categoria e por profissional, para não misturar cílios, unhas e sobrancelhas no mesmo número.
+        </p>
+
+        <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase' }}>Por categoria</div>
+          {ticketCategoryRows.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '18px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Sem comandas para calcular neste período.</div>
+          ) : (
+            ticketCategoryRows.map((item) => (
+              <div key={item.category} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center', padding: '10px', border: `1px solid ${borderCol}`, borderRadius: '12px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ color: textMain, fontSize: '0.9rem' }}>{item.category}</strong>
+                  <div style={{ color: textSec, fontSize: '0.74rem', marginTop: '2px' }}>
+                    {item.count} comandas · faturamento {formatCurrency(item.revenue)}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: 'var(--primary-color, #e91e63)', fontWeight: 950 }}>{formatCurrency(item.ticket)}</div>
+                  <div style={{ color: textSec, fontSize: '0.7rem' }}>ticket</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gap: '10px' }}>
+          <div style={{ color: textSec, fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase' }}>Por profissional</div>
+          {ticketProfessionalRows.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '18px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Sem profissionais com comandas neste período.</div>
+          ) : (
+            ticketProfessionalRows.map((item) => (
+              <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center', padding: '10px', border: `1px solid ${borderCol}`, borderRadius: '12px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ color: textMain, fontSize: '0.9rem' }}>{item.name}</strong>
+                  <div style={{ color: textSec, fontSize: '0.74rem', marginTop: '2px' }}>
+                    {item.category} · {item.count} comandas · {formatCurrency(item.revenue)}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#06b6d4', fontWeight: 950 }}>{formatCurrency(item.ticket)}</div>
+                  <div style={{ color: textSec, fontSize: '0.7rem' }}>ticket</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
 
       <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
         <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Status do periodo</h3>

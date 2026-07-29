@@ -12,7 +12,7 @@ export function useBookingRequests() {
     const { data, error: fetchError } = await supabase
       .from('booking_requests')
       .select('*')
-      .in('status', ['new', 'contacted'])
+      .in('status', ['new', 'contacted', 'scheduled'])
       .order('created_at', { ascending: false })
 
     if (fetchError) {

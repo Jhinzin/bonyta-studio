@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
 export default function Header({
-  theme, toggleTheme, view, setView, profFilter, setProfFilter, professionals, selectedDate, onPrev, onNext
+  theme, toggleTheme, view, setView, profFilter, setProfFilter, professionals, selectedDate, onPrev, onNext, allowAllProfessionals = true
 }) {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -55,7 +55,7 @@ export default function Header({
 
       {/* 3. FILTRO DE PROFISSIONAIS (Sempre na base do Header) */}
       <div className="prof-tabs-scroller" style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 20px', scrollbarWidth: 'none' }}>
-        {view === 'dia' && (
+        {view === 'dia' && allowAllProfessionals && (
           <button
             style={{
               padding: '6px 16px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap',

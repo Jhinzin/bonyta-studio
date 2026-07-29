@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppointments } from './hooks/useAppointments'
 import { useClients } from './hooks/useClients'
 import { useProducts } from './hooks/useProducts'
 import { useBookingRequests } from './hooks/useBookingRequests'
 import { useServices } from './hooks/useServices'
 import { useWaitlist } from './hooks/useWaitlist'
+import { useWorkingHours } from './hooks/useWorkingHours'
+import { useCurrentUserRole } from './hooks/useCurrentUserRole'
+import { useUserProfiles } from './hooks/useUserProfiles'
+import { useMessageLogs } from './hooks/useMessageLogs'
 import { formatDateToISO } from './utils'
 import { onlyDigits } from './utils/whatsapp'
+import { buildCommunicationTasks } from './utils/communicationTasks'
 import Header from './components/Header'
 import WeekDaysStrip from './components/WeekDaysStrip'
 import DayView from './components/DayView'
@@ -18,7 +23,10 @@ import ServicesView from './components/ServicesView'
 import ClientsView from './components/ClientsView'
 import BookingRequestsModal from './components/BookingRequestsModal'
 import DailyCenterModal from './components/DailyCenterModal'
+import CommunicationCenterModal from './components/CommunicationCenterModal'
+import AccessControlModal from './components/AccessControlModal'
 import WaitlistModal from './components/WaitlistModal'
+import WorkingHoursModal from './components/WorkingHoursModal'
 import BlockModal from './components/BlockModal'
 import DashboardView from './components/DashboardView'
 import ProfessionalModal from './components/ProfessionalModal';
@@ -48,6 +56,9 @@ function StudioApp() {
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
   const [bookingRequestsModalOpen, setBookingRequestsModalOpen] = useState(false);
   const [dailyCenterModalOpen, setDailyCenterModalOpen] = useState(false);
+  const [communicationCenterOpen, setCommunicationCenterOpen] = useState(false);
+  const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const [accessControlModalOpen, setAccessControlModalOpen] = useState(false);
   const [profFilter, setProfFilter] = useState('todos')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [modalOpen, setModalOpen] = useState(false)
@@ -59,7 +70,7 @@ function StudioApp() {
   // COLE ESTAS LINHAS AQUI NO TOPO, JUNTO COM SEUS OUTROS USESTATES!
   // Isso vai dar vida aos seletores de Clientes e Serviços até ligarmos o banco.
   // ====================================================================
-  const { clients, createClient } = useClients()
+  const { clients, createClient, updateClient } = useClients()
   const { services } = useServices()
   const { products } = useProducts()
   const {
@@ -90,6 +101,47 @@ function StudioApp() {
     professionals, appointments, loading, error,
     createAppointment, updateAppointment, deleteAppointment, createProfessional, updateProfessional
   } = useAppointments()
+  const access = useCurrentUserRole()
+  const {
+    logs: messageLogs,
+    error: messageLogsError,
+    logMessage
+  } = useMessageLogs(!access.loading)
+  const {
+    profiles: userProfiles,
+    loading: userProfilesLoading,
+    error: userProfilesError,
+    saveProfile: saveUserProfile
+  } = useUserProfiles(access.canManageTeam)
+  const {
+    workingHours,
+    loading: workingHoursLoading,
+    error: workingHoursError,
+    updateWorkingHour,
+    saveProfessionalSchedule
+  } = useWorkingHours(professionals)
+
+  const allowedTabs = access.isProfessional
+    ? ['agenda', 'financeiro']
+    : ['agenda', 'clientes', 'servicos', 'financeiro']
+  const scopedProfessionals = access.isProfessional
+    ? (access.professionalId ? professionals.filter((professional) => professional.id === access.professionalId) : [])
+    : professionals
+  const scopedAppointments = access.isProfessional
+    ? (access.professionalId ? appointments.filter((appointment) => appointment.professional_id === access.professionalId) : [])
+    : appointments
+  const communicationTasks = useMemo(() => buildCommunicationTasks({
+    appointments: scopedAppointments,
+    clients,
+    professionals: scopedProfessionals,
+    messageLogs
+  }), [clients, messageLogs, scopedAppointments, scopedProfessionals])
+
+  useEffect(() => {
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab('agenda')
+    }
+  }, [activeTab, allowedTabs])
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
@@ -192,11 +244,21 @@ const handleSubmit = async (appointmentData) => {
       String(client.name || '').trim().toLowerCase() === String(request.customer_name || '').trim().toLowerCase()
     ))
 
-    const client = existingClient || await createClient({
+    const clientPayload = {
       name: request.customer_name,
       phone: request.customer_phone,
-      observation: 'Cliente captada pela pagina publica /agendar.'
-    })
+      birth_date: request.customer_birth_date || existingClient?.birth_date || null,
+      email: request.customer_email || existingClient?.email || '',
+      observation: request.note
+        ? `Cliente captada pela pagina publica /agendar. Obs: ${request.note}`
+        : 'Cliente captada pela pagina publica /agendar.'
+    }
+
+    const client = existingClient || await createClient(clientPayload)
+
+    if (existingClient) {
+      await updateClient(existingClient.id, clientPayload)
+    }
 
     const selectedService = services.find((service) => String(service.id) === String(request.service_id))
     const nextDate = new Date(`${request.preferred_date}T12:00:00`)
@@ -212,7 +274,7 @@ const handleSubmit = async (appointmentData) => {
       service_id: request.service_id || '',
       professional_id: request.professional_id || professionals[0]?.id || '',
       date: request.preferred_date,
-      time: defaultTimeByPeriod(request.preferred_period),
+      time: request.selected_time ? String(request.selected_time).slice(0, 5) : defaultTimeByPeriod(request.preferred_period),
       duration_minutes: selectedService?.duration_minutes || 60,
       observation: request.note ? `Pedido do site: ${request.note}` : 'Pedido vindo pelo site /agendar.'
     })
@@ -234,10 +296,105 @@ const handleSubmit = async (appointmentData) => {
 
   // Lógica de UX: Força a seleção de um profissional se mudar para Semana/Mês
   useEffect(() => {
+    if (access.isProfessional && access.professionalId) {
+      setProfFilter(access.professionalId)
+      return
+    }
     if (view !== 'dia' && profFilter === 'todos' && professionals.length > 0) {
       setProfFilter(professionals[0].id);
     }
-  }, [view, profFilter, professionals]);
+  }, [view, profFilter, professionals, access.isProfessional, access.professionalId]);
+
+  const actionGroups = [
+    {
+      title: 'Agenda',
+      items: [
+        {
+          label: 'Novo agendamento',
+          description: 'Criar atendimento na agenda',
+          icon: 'fa-calendar-check',
+          color: '#10b981',
+          onClick: () => {
+            setModalMode('appointment')
+            openNewModal(access.isProfessional && access.professionalId ? { professional_id: access.professionalId } : null)
+          }
+        },
+        access.canManageBusiness && {
+          label: 'Bloqueio / compromisso',
+          description: 'Folga, almoço, curso ou evento',
+          icon: 'fa-lock',
+          color: '#7c4dff',
+          onClick: () => setBlockModalOpen(true)
+        },
+        access.canManageBusiness && {
+          label: 'Lista de espera',
+          description: 'Clientes aguardando encaixe',
+          icon: 'fa-clipboard-list',
+          color: '#3b82f6',
+          onClick: () => setWaitlistModalOpen(true)
+        }
+      ].filter(Boolean)
+    },
+    {
+      title: 'Operação',
+      items: [
+        {
+          label: 'Central de mensagens',
+          description: 'Confirmações, manutenção e clientes sumidas',
+          icon: 'fa-comments',
+          color: '#25D366',
+          badge: communicationTasks.length,
+          onClick: () => setCommunicationCenterOpen(true)
+        },
+        {
+          label: 'Central do dia',
+          description: 'Confirmar, lembrar e lançar sinal',
+          icon: 'fa-bell',
+          color: '#06b6d4',
+          onClick: () => setDailyCenterModalOpen(true)
+        },
+        access.canSeeSiteRequests && {
+          label: 'Agenda do site',
+          description: 'Pedidos vindos da landing',
+          icon: 'fa-inbox',
+          color: 'var(--primary-color, #e91e63)',
+          badge: bookingRequests.length,
+          onClick: () => setBookingRequestsModalOpen(true)
+        }
+      ].filter(Boolean)
+    },
+    {
+      title: 'Gestão',
+      items: [
+        access.canManageTeam && {
+          label: 'Nova profissional',
+          description: 'Cadastrar alguém da equipe',
+          icon: 'fa-user-plus',
+          color: '#f59e0b',
+          onClick: () => setProfModalOpen(true)
+        },
+        access.canManageTeam && {
+          label: 'Acessos do app',
+          description: 'Vincular login e permissões',
+          icon: 'fa-user-shield',
+          color: '#4f46e5',
+          onClick: () => setAccessControlModalOpen(true)
+        },
+        access.canManageTeamSchedule && {
+          label: 'Expediente da equipe',
+          description: 'Horários usados pela landing',
+          icon: 'fa-clock',
+          color: '#111827',
+          onClick: () => setWorkingHoursModalOpen(true)
+        }
+      ].filter(Boolean)
+    }
+  ].filter((group) => group.items.length > 0)
+
+  const handleActionClick = (action) => {
+    action.onClick()
+    setIsFabOpen(false)
+  }
 
   return (
     <div className="app-container">
@@ -251,10 +408,11 @@ const handleSubmit = async (appointmentData) => {
             theme={theme} toggleTheme={toggleTheme}
             view={view} setView={setView}
             profFilter={profFilter} setProfFilter={setProfFilter}
-            professionals={professionals}
+            professionals={scopedProfessionals}
             selectedDate={selectedDate}
             onPrev={() => navigateDate(-1)}
             onNext={() => navigateDate(1)}
+            allowAllProfessionals={!access.isProfessional}
           />
 
           {view === 'dia' && (
@@ -267,6 +425,12 @@ const handleSubmit = async (appointmentData) => {
                 Erro ao carregar dados do Supabase: {error.message}
               </div>
             )}
+            {access.isProfessional && !access.professionalId && (
+              <div style={{ margin: 16, padding: 14, borderRadius: 12, background: 'rgba(233, 30, 99, 0.12)', color: '#ff8ab3', fontSize: 13, lineHeight: 1.4 }}>
+                Seu login está como profissional, mas ainda não foi vinculado a uma profissional da equipe.
+                Peça para a conta administradora abrir “Acessos do App” e escolher sua profissional.
+              </div>
+            )}
 
             {loading ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -276,8 +440,8 @@ const handleSubmit = async (appointmentData) => {
               <>
                 <section className={`view-container ${view !== 'dia' ? 'hidden' : ''}`}>
                   <DayView
-                    professionals={professionals}
-                    appointments={appointments}
+                    professionals={scopedProfessionals}
+                    appointments={scopedAppointments}
                     selectedDate={selectedDate}
                     profFilter={profFilter}
                     onSlotClick={(prof, time) =>
@@ -293,16 +457,16 @@ const handleSubmit = async (appointmentData) => {
 
                 <section className={`view-container ${view !== 'semana' ? 'hidden' : ''}`}>
                   <WeekView
-                    appointments={appointments}
+                    appointments={scopedAppointments}
                     selectedDate={selectedDate}
                     profFilter={profFilter}
-                    professionals={professionals}
+                    professionals={scopedProfessionals}
                   />
                 </section>
 
                 <section className={`view-container ${view !== 'mes' ? 'hidden' : ''}`}>
                   <MonthView
-                    appointments={appointments}
+                    appointments={scopedAppointments}
                     selectedDate={selectedDate}
                     profFilter={profFilter}
                     theme={theme}
@@ -340,134 +504,137 @@ const handleSubmit = async (appointmentData) => {
           ========================================= */}
       {activeTab === 'financeiro' && (
         <DashboardView 
-          appointments={appointments} 
-          professionals={professionals} 
+          appointments={scopedAppointments} 
+          professionals={scopedProfessionals} 
           products={products}
-          onUpdateProfessional={updateProfessional}
+          onUpdateProfessional={access.canSeeFullFinance ? updateProfessional : null}
+          accessMode={access.canSeeFullFinance ? 'owner' : 'professional'}
+          currentProfessionalId={access.professionalId}
           theme={theme} 
         />
       )}
 
-        {/* ==========================================
-          NOVO: SPEED DIAL (FAB EXPANSÍVEL) ALINHADO
-          ========================================== */}
-      <div style={{ position: 'fixed', bottom: '100px', right: '20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', zIndex: 9999 }}>
-        {isFabOpen && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px', alignItems: 'flex-end' }}>
-            
-            {/* Solicitações vindas da landing pública */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Solicitações do Site {bookingRequests.length > 0 ? `(${bookingRequests.length})` : ''}
-              </span>
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setBookingRequestsModalOpen(true); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: 'var(--primary-color, #e91e63)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', position: 'relative' }}
-                >
-                  <i className="fa-solid fa-inbox"></i>
-                  {bookingRequests.length > 0 && (
-                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '999px', background: '#f59e0b', color: '#fff', fontSize: '0.65rem', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
-                      {bookingRequests.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Central do Dia
-              </span>
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setDailyCenterModalOpen(true); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#06b6d4', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                >
-                  <i className="fa-solid fa-bell"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* NOVO: Adicionar Profissional */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Nova Profissional
-              </span>
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setProfModalOpen(true); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#f59e0b', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                >
-                  <i className="fa-solid fa-user-plus"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de Espera */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Lista de Espera
-              </span>
-              {/* MÁGICA DO ALINHAMENTO: Wrapper de 60px centralizado */}
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setWaitlistModalOpen(true); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                >
-                  <i className="fa-solid fa-clipboard-list"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Novo Compromisso/Bloqueio */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Novo Compromisso/Bloqueio
-              </span>
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setBlockModalOpen(true); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#7c4dff', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                >
-                  <i className="fa-solid fa-lock"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Novo Agendamento */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ background: theme === 'light' ? '#fff' : '#333', color: theme === 'light' ? '#333' : '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                Novo Agendamento
-              </span>
-              <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  onClick={() => { setModalMode('appointment'); openNewModal(); setIsFabOpen(false); }}
-                  style={{ width: '45px', height: '45px', borderRadius: '50%', background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                >
-                  <i className="fa-solid fa-calendar-check"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Botão Rosa Principal */}
-        <button 
-          onClick={() => setIsFabOpen(!isFabOpen)}
-          style={{ 
-            width: '60px', height: '60px', borderRadius: '50%', 
-            background: 'var(--primary-color, #e91e63)', color: '#fff', 
-            border: 'none', fontSize: '1.5rem', cursor: 'pointer', 
-            boxShadow: '0 4px 12px rgba(233, 30, 99, 0.4)',
-            transition: 'transform 0.2s ease',
-            transform: isFabOpen ? 'rotate(45deg)' : 'rotate(0deg)'
+      {isFabOpen && (
+        <div
+          onClick={() => setIsFabOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9998,
+            background: 'rgba(0,0,0,0.42)',
+            backdropFilter: 'blur(4px)'
           }}
+        />
+      )}
+
+      {isFabOpen && (
+        <section
+          style={{
+            position: 'fixed',
+            left: '12px',
+            right: '12px',
+            bottom: '88px',
+            zIndex: 9999,
+            maxWidth: '560px',
+            margin: '0 auto',
+            maxHeight: '72vh',
+            overflowY: 'auto',
+            borderRadius: '24px',
+            border: theme === 'light' ? '1px solid #ddd' : '1px solid rgba(255,255,255,0.12)',
+            background: theme === 'light' ? '#ffffff' : '#171717',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.38)',
+            padding: '16px'
+          }}
+          aria-label="Ações rápidas"
         >
-          <i className="fa-solid fa-plus"></i>
-        </button>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <strong style={{ color: theme === 'light' ? '#111' : '#fff', fontSize: '1rem' }}>Ações rápidas</strong>
+              <p style={{ color: theme === 'light' ? '#666' : '#aaa', margin: '3px 0 0', fontSize: '0.78rem' }}>Escolha o que quer fazer agora.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFabOpen(false)}
+              style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: theme === 'light' ? '#f3f4f6' : '#262626', color: theme === 'light' ? '#111' : '#fff', cursor: 'pointer' }}
+              aria-label="Fechar ações rápidas"
+            >
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: '14px' }}>
+            {actionGroups.map((group) => (
+              <div key={group.title} style={{ display: 'grid', gap: '8px' }}>
+                <span style={{ color: 'var(--primary-color, #e91e63)', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {group.title}
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                  {group.items.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onClick={() => handleActionClick(action)}
+                      style={{
+                        position: 'relative',
+                        display: 'grid',
+                        gridTemplateColumns: '38px 1fr',
+                        gap: '10px',
+                        alignItems: 'center',
+                        minHeight: '74px',
+                        padding: '10px',
+                        borderRadius: '16px',
+                        border: theme === 'light' ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.1)',
+                        background: theme === 'light' ? '#fafafa' : 'rgba(255,255,255,0.045)',
+                        color: theme === 'light' ? '#111' : '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span style={{ width: '38px', height: '38px', display: 'grid', placeItems: 'center', borderRadius: '13px', background: action.color, color: '#fff', boxShadow: '0 10px 22px rgba(0,0,0,0.18)' }}>
+                        <i className={`fa-solid ${action.icon}`}></i>
+                      </span>
+                      <span style={{ display: 'grid', gap: '3px', minWidth: 0 }}>
+                        <strong style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{action.label}</strong>
+                        <small style={{ color: theme === 'light' ? '#666' : '#aaa', fontSize: '0.7rem', lineHeight: 1.25 }}>{action.description}</small>
+                      </span>
+                      {action.badge > 0 && (
+                        <em style={{ position: 'absolute', top: '8px', right: '8px', minWidth: '19px', height: '19px', padding: '0 6px', borderRadius: '999px', background: '#f59e0b', color: '#fff', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
+                          {action.badge}
+                        </em>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setIsFabOpen(!isFabOpen)}
+        style={{
+          position: 'fixed',
+          right: '20px',
+          bottom: '100px',
+          zIndex: 10000,
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: 'var(--primary-color, #e91e63)',
+          color: '#fff',
+          border: 'none',
+          fontSize: '1.5rem',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(233, 30, 99, 0.4)',
+          transition: 'transform 0.2s ease',
+          transform: isFabOpen ? 'rotate(45deg)' : 'rotate(0deg)'
+        }}
+        aria-label={isFabOpen ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
+      >
+        <i className="fa-solid fa-plus"></i>
+      </button>
       {/* =========================================
           4. MENU INFERIOR (Fixo no rodapé sempre)
           ========================================= */}
@@ -475,6 +642,7 @@ const handleSubmit = async (appointmentData) => {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         theme={theme}
+        allowedTabs={allowedTabs}
       />
 
       {/* =========================================
@@ -486,7 +654,7 @@ const handleSubmit = async (appointmentData) => {
         onClose={closeModal}
         onSubmit={handleSubmit}
         onDelete={editingAppointment ? handleDelete : null}
-        professionals={professionals}
+        professionals={scopedProfessionals}
         defaultDate={formatDateToISO(selectedDate)}
         editingAppointment={editingAppointment}
         prefill={prefill}
@@ -494,7 +662,7 @@ const handleSubmit = async (appointmentData) => {
         clients={clients}
         services={services}
         products={products}
-        appointments={appointments}
+        appointments={scopedAppointments}
       />
 
        {/* =========================================
@@ -505,7 +673,7 @@ const handleSubmit = async (appointmentData) => {
         onClose={handleCloseBlockModal}
         onSubmit={handleSubmit}
         onDelete={handleDelete} /* Reutiliza a sua função de deleção do Supabase existente */
-        professionals={professionals}
+        professionals={scopedProfessionals}
         defaultDate={formatDateToISO(selectedDate)}
         theme={theme}
         editingBlock={editingBlock} /* Passa o bloco atual se for edição */
@@ -519,7 +687,7 @@ const handleSubmit = async (appointmentData) => {
         onClose={() => setWaitlistModalOpen(false)}
         clients={clients} /* Certifique-se de passar o array de clients que você já tem no App.jsx */
         services={services} /* E o array de services */
-        professionals={professionals}
+        professionals={scopedProfessionals}
         defaultDate={formatDateToISO(selectedDate)}
         theme={theme}
         waitlist={waitlist}
@@ -536,9 +704,12 @@ const handleSubmit = async (appointmentData) => {
         theme={theme}
         requests={bookingRequests}
         services={services}
-        professionals={professionals}
+        professionals={scopedProfessionals}
         loading={bookingRequestsLoading}
         error={bookingRequestsError}
+        messageLogs={messageLogs}
+        messageLogsError={messageLogsError}
+        onLogMessage={logMessage}
         onUpdateStatus={updateRequestStatus}
         onCreateAppointment={openAppointmentFromBookingRequest}
       />
@@ -548,10 +719,44 @@ const handleSubmit = async (appointmentData) => {
         onClose={() => setDailyCenterModalOpen(false)}
         theme={theme}
         selectedDate={selectedDate}
-        appointments={appointments}
+        appointments={scopedAppointments}
         clients={clients}
-        professionals={professionals}
+        professionals={scopedProfessionals}
+        messageLogs={messageLogs}
+        messageLogsError={messageLogsError}
+        onLogMessage={logMessage}
         onUpdateAppointment={updateAppointment}
+      />
+
+      <CommunicationCenterModal
+        open={communicationCenterOpen}
+        onClose={() => setCommunicationCenterOpen(false)}
+        theme={theme}
+        tasks={communicationTasks}
+        onLogMessage={logMessage}
+      />
+
+      <WorkingHoursModal
+        open={workingHoursModalOpen}
+        onClose={() => setWorkingHoursModalOpen(false)}
+        theme={theme}
+        professionals={professionals}
+        workingHours={workingHours}
+        loading={workingHoursLoading}
+        error={workingHoursError}
+        onChange={updateWorkingHour}
+        onSave={saveProfessionalSchedule}
+      />
+
+      <AccessControlModal
+        open={accessControlModalOpen}
+        onClose={() => setAccessControlModalOpen(false)}
+        theme={theme}
+        professionals={professionals}
+        profiles={userProfiles}
+        loading={userProfilesLoading}
+        error={userProfilesError}
+        onSave={saveUserProfile}
       />
 
      {/* 9. MODAL DE NOVA PROFISSIONAL */}

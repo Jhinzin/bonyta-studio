@@ -211,6 +211,7 @@ export default function AppointmentModal({
   const totalCost = serviceCost + extrasCost
   const amountPaid = Number(form.amount_paid || 0)
   const amountPending = Math.max(totalGeral - amountPaid, 0)
+  const depositAmount = totalGeral > 0 ? Math.round(totalGeral * 0.3 * 100) / 100 : 0
 
   const handleAddItem = (productId) => {
     if (!productId) return
@@ -242,7 +243,9 @@ export default function AppointmentModal({
       date: form.date,
       time: form.time,
       service: selectedService?.name || form.service,
-      professional: selectedProfessional?.name
+      professional: selectedProfessional?.name,
+      totalPrice: totalGeral,
+      depositAmount
     })
     window.open(buildWhatsAppUrl(selectedClient.phone, text), '_blank', 'noopener,noreferrer')
   }
@@ -497,6 +500,31 @@ export default function AppointmentModal({
                       </div>
                     </div>
 
+                    {depositAmount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({
+                          ...form,
+                          amount_paid: depositAmount,
+                          payment_status: 'sinal',
+                          payment_method: form.payment_method === 'nao_informado' ? 'pix' : form.payment_method
+                        })}
+                        style={{
+                          border: '1px solid rgba(59,130,246,0.4)',
+                          background: isLight ? '#eff6ff' : 'rgba(59,130,246,0.12)',
+                          color: isLight ? '#1d4ed8' : '#bfdbfe',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <i className="fa-solid fa-bolt" style={{ marginRight: '7px' }}></i>
+                        Lançar sinal 30% ({formatCurrency(depositAmount)})
+                      </button>
+                    )}
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                       {paymentStatusOptions.map((option) => {
                         const active = (form.payment_status || 'aberto') === option.id
@@ -528,6 +556,12 @@ export default function AppointmentModal({
               <span style={{ color: textSec, fontWeight: 700 }}>Total da comanda</span>
               <strong style={{ color: 'var(--primary-color, #e91e63)', fontSize: '1.18rem' }}>{formatCurrency(totalGeral)}</strong>
             </div>
+            {depositAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: textSec, fontSize: '0.82rem' }}>
+                <span>Sinal sugerido 30%</span>
+                <strong style={{ color: '#93c5fd' }}>{formatCurrency(depositAmount)}</strong>
+              </div>
+            )}
             {amountPaid > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: textSec, fontSize: '0.82rem' }}>
                 <span>Recebido {formatCurrency(amountPaid)}</span>
