@@ -117,7 +117,7 @@ const externalWhatsAppMessage = (task: AssistantTask) => {
       `• Horário: ${formatTime(time)}`,
       `• Profissional: ${task.professional?.name || 'equipe Bonyta'}`,
       '',
-      'Podemos confirmar seu horário e combinar o sinal?'
+      'Podemos confirmar seu horário?'
     ].join('\n')
   }
 

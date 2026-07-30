@@ -65,7 +65,6 @@ export default function BookingRequestsModal({
           `Olá, ${firstName(request.customer_name)}! Aqui é do Bonyta Studio 💖\n\n` +
           `Recebemos seu agendamento pelo site para ${service?.name || 'atendimento'} ` +
           `com ${professional?.name || 'nossa equipe'} em ${formatShortDatePt(request.preferred_date)} às ${formatTime(request.selected_time)}.\n\n` +
-          `Para reservar, trabalhamos com sinal de 30%, abatido no valor final.${depositLine}\n` +
           `Vou confirmar os detalhes com você por aqui.`
         )
       : (
@@ -73,7 +72,6 @@ export default function BookingRequestsModal({
           `Recebemos sua solicitação pelo site para ${service?.name || 'atendimento'} ` +
           `em ${formatShortDatePt(request.preferred_date)} no período da ${periodLabel[request.preferred_period]?.toLowerCase() || 'preferência informada'}.\n\n` +
           `${professional ? `Você pediu com ${professional.name}. ` : ''}` +
-          `Para reservar, trabalhamos com sinal de 30%, abatido no valor final.${depositLine}\n` +
           `Vou te passar as opções disponíveis para confirmar o melhor horário.`
         )
 

@@ -40,7 +40,7 @@ export const formatCurrencyPt = (value) => (
 )
 
 export const appointmentMessageTemplates = {
-  confirmacao: ({ clientName, date, time, service, professional, totalPrice, depositAmount }) => (
+  confirmacao: ({ clientName, date, time, service, professional, totalPrice }) => (
     `Olá, ${firstName(clientName)}! Aqui é do Bonyta Studio 💖\n\n` +
     `Passando para confirmar seu horário:\n` +
     `• Serviço: ${service || 'atendimento'}\n` +
@@ -48,7 +48,7 @@ export const appointmentMessageTemplates = {
     `• Horário: ${String(time || '').slice(0, 5) || 'a combinar'}\n` +
     `• Profissional: ${professional || 'equipe Bonyta'}\n\n` +
     (Number(totalPrice || 0) > 0
-      ? `Para reservar, o sinal de 30% fica em ${formatCurrencyPt(depositAmount || Number(totalPrice) * 0.3)} e é abatido no valor final de ${formatCurrencyPt(totalPrice)}.\n\n`
+      ? `Valor do serviço: ${formatCurrencyPt(totalPrice)}.\n\n`
       : '') +
     `Pode confirmar presença pra gente?`
   ),

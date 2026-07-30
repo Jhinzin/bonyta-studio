@@ -60,13 +60,13 @@ const catalogCards = [
 ]
 
 const faqs = [
-  ['O horário fica garantido?', 'O horário entra na agenda da Bonyta como pendente. A equipe confirma pelo WhatsApp após combinar o sinal.'],
-  ['Preciso pagar pelo site?', 'Não. O site não cobra pagamento; o sinal de 30% é combinado diretamente com o estúdio.'],
+  ['O horário fica garantido?', 'O horário entra na agenda da Bonyta como pendente. A equipe confirma pelo WhatsApp.'],
+  ['Preciso pagar pelo site?', 'Não. Nenhum pagamento é necessário pelo site (sinal de 30% temporariamente desativado para testes).'],
   ['Posso escolher profissional?', 'Sim. Você pode escolher uma profissional ou deixar como qualquer disponível.']
 ]
 
 const protocolCards = [
-  ['Sinal de 30%', 'O horário é confirmado mediante sinal de 30%, abatido do valor final.'],
+  ['Agendamento Simples', 'O horário é confirmado após verificação da equipe via WhatsApp.'],
   ['Pontualidade', 'Atrasos acima de 10 minutos podem cancelar o atendimento para preservar a agenda.'],
   ['Manutenção', 'Unhas normalmente têm manutenção entre 15 e 28 dias, conforme crescimento e estado.']
 ]
@@ -120,13 +120,12 @@ const buildClientMessage = ({ form, selectedService, selectedProfessional, resul
   form.email ? `E-mail: ${form.email}` : '',
   `Serviço: ${selectedService?.name || result?.service_name || 'Não informado'}`,
   selectedService?.price ? `Valor: ${formatCurrency(selectedService.price)}` : '',
-  selectedService?.price ? `Sinal 30%: ${formatCurrency(Number(selectedService.price) * 0.3)}` : '',
   `Profissional: ${selectedProfessional?.name || result?.professional_name || 'Não informado'}`,
   `Data: ${dateLabel(form.date)}`,
   `Horário: ${String(form.time || result?.appointment_time || '').slice(0, 5)}`,
   form.note ? `Observação: ${form.note}` : '',
   '',
-  'Pode confirmar meu horário e me passar a chave para o sinal?'
+  'Pode confirmar meu horário?'
 ].filter(Boolean).join('\n')
 
 export default function App() {
@@ -653,7 +652,6 @@ export default function App() {
                 <p>{bookingSummary.date} às {bookingSummary.time} · {bookingSummary.professional}</p>
                 <div>
                   <em>Valor: {bookingSummary.price}</em>
-                  <em>Sinal 30%: {bookingSummary.deposit}</em>
                 </div>
               </div>
             )}
@@ -664,7 +662,7 @@ export default function App() {
                 checked={form.acceptedPolicy}
                 onChange={(event) => setForm({ ...form, acceptedPolicy: event.target.checked })}
               />
-              <span>Entendo que o horário fica pendente até confirmação da equipe e combinação do sinal de 30%.</span>
+              <span>Entendo que o horário fica pendente até confirmação da equipe.</span>
             </label>
 
             <label className="policy-check">
@@ -687,7 +685,7 @@ export default function App() {
 
             {submitStatus === 'saved' && (
               <div className="status success">
-                Agendamento enviado para a Bonyta. Abra o WhatsApp para confirmar com a equipe e combinar o sinal.
+                Agendamento enviado para a Bonyta. Abra o WhatsApp para confirmar com a equipe.
                 {bookingResult?.appointment_time ? ` Horário: ${String(bookingResult.appointment_time).slice(0, 5)}.` : ''}
               </div>
             )}
@@ -702,7 +700,7 @@ export default function App() {
             <button className="whatsapp-button" type="submit" disabled={submitStatus === 'saving'}>
               {submitStatus === 'saving' ? 'Salvando agendamento...' : 'Finalizar agendamento'}
             </button>
-            <small>O horário entra como pendente até a equipe confirmar pelo WhatsApp e orientar o sinal.</small>
+            <small>O horário entra como pendente até a equipe confirmar pelo WhatsApp.</small>
           </form>
         </section>
 
