@@ -123,13 +123,15 @@ function StudioApp() {
 
   const allowedTabs = access.isProfessional
     ? ['agenda', 'financeiro']
-    : ['agenda', 'clientes', 'servicos', 'financeiro']
+    : access.isOwner
+      ? ['agenda', 'clientes', 'servicos', 'financeiro']
+      : []
   const scopedProfessionals = access.isProfessional
     ? (access.professionalId ? professionals.filter((professional) => professional.id === access.professionalId) : [])
-    : professionals
+    : access.isOwner ? professionals : []
   const scopedAppointments = access.isProfessional
     ? (access.professionalId ? appointments.filter((appointment) => appointment.professional_id === access.professionalId) : [])
-    : appointments
+    : access.isOwner ? appointments : []
   const communicationTasks = useMemo(() => buildCommunicationTasks({
     appointments: scopedAppointments,
     clients,
@@ -394,6 +396,30 @@ const handleSubmit = async (appointmentData) => {
   const handleActionClick = (action) => {
     action.onClick()
     setIsFabOpen(false)
+  }
+
+  if (access.loading) {
+    return (
+      <div className="app-container" style={{ display: 'grid', placeItems: 'center', padding: '24px' }}>
+        <div style={{ color: '#fff', fontWeight: 800 }}>Carregando seu acesso...</div>
+      </div>
+    )
+  }
+
+  if (!access.isActive) {
+    return (
+      <div className="app-container" style={{ display: 'grid', placeItems: 'center', padding: '24px' }}>
+        <div style={{ maxWidth: '420px', padding: '24px', border: '1px solid #333', borderRadius: '16px', background: '#17171b', color: '#fff' }}>
+          <div style={{ color: 'var(--primary-color, #e91e63)', fontSize: '1.8rem', marginBottom: '12px' }}>
+            <i className="fa-solid fa-user-lock"></i>
+          </div>
+          <h2 style={{ margin: '0 0 8px', fontSize: '1.25rem' }}>Acesso ainda não liberado</h2>
+          <p style={{ margin: 0, color: '#aaa', lineHeight: 1.5 }}>
+            Peça à responsável pela Bonyta para ativar seu perfil e vincular sua profissional.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

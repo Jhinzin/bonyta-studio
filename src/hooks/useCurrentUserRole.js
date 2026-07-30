@@ -6,7 +6,7 @@ const OWNER_EMAILS = new Set(['wandrellclima@gmail.com', 'bonytastudio@gmail.com
 const ownerFallback = {
   role: 'owner',
   professional_id: null,
-  active: true,
+  active: false,
   email: ''
 }
 
@@ -50,11 +50,13 @@ export function useCurrentUserRole() {
 
   const permissions = useMemo(() => {
     const role = profile?.role || 'professional'
-    const isOwner = role === 'owner' || role === 'manager'
-    const isProfessional = role === 'professional'
+    const isActive = profile?.active === true
+    const isOwner = isActive && (role === 'owner' || role === 'manager')
+    const isProfessional = isActive && role === 'professional'
 
     return {
       role,
+      isActive,
       isOwner,
       isProfessional,
       professionalId: profile?.professional_id || null,
