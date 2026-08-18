@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { appointmentMessageTemplates, buildWhatsAppUrl } from '../utils/whatsapp'
 import { TIMELINE_CONFIG } from '../utils'
+import { generateRecurringDates, formatShortDate } from '../utils/recurrence'
 
 const emptyForm = {
   client_id: '',
@@ -137,6 +138,12 @@ export default function AppointmentModal({
   const [showComanda, setShowComanda] = useState(false)
   const [comandaItens, setComandaItens] = useState([])
 
+  // Estado de Recorrência
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurrenceFreq, setRecurrenceFreq] = useState('biweekly')
+  const [recurrenceDurationMonths, setRecurrenceDurationMonths] = useState(4)
+  const [recurrenceCustomDays, setRecurrenceCustomDays] = useState(15)
+
   const isLight = theme === 'light'
   const bgMain = isLight ? '#f9f9f9' : '#121212'
   const bgCard = isLight ? '#ffffff' : '#1e1e1e'
@@ -250,6 +257,16 @@ export default function AppointmentModal({
     window.open(buildWhatsAppUrl(selectedClient.phone, text), '_blank', 'noopener,noreferrer')
   }
 
+  const recurringDates = useMemo(() => {
+    if (!isRecurring || !form.date) return []
+    return generateRecurringDates({
+      startDate: form.date,
+      frequency: recurrenceFreq,
+      durationMonths: recurrenceDurationMonths,
+      customDays: recurrenceCustomDays
+    })
+  }, [isRecurring, form.date, recurrenceFreq, recurrenceDurationMonths, recurrenceCustomDays])
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!form.client_id || !form.service_id) return alert('Selecione cliente e servico.')
@@ -271,7 +288,8 @@ export default function AppointmentModal({
         amount_paid: amountPaid,
         payment_method: form.payment_method || 'nao_informado',
         payment_status: form.payment_status || (amountPaid >= totalGeral && totalGeral > 0 ? 'pago' : amountPaid > 0 ? 'sinal' : 'aberto'),
-        comanda: comandaItens
+        comanda: comandaItens,
+        recurringDates: isRecurring ? recurringDates : []
       })
       onClose()
     } catch (err) {
@@ -384,6 +402,127 @@ export default function AppointmentModal({
                 </div>
               )}
             </section>
+
+            {/* SEÇÃO DE AGENDAMENTO RECORRENTE */}
+            {!editingAppointment && (
+              <section style={{ background: bgCard, border: `1px solid ${isRecurring ? 'var(--primary-color, #e91e63)' : borderCol}`, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'border-color 0.2s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.9rem', color: textMain, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-arrows-rotate" style={{ color: 'var(--primary-color, #e91e63)' }}></i>
+                      Repetir agendamento (Recorrência)
+                    </strong>
+                    <p style={{ color: textSec, fontSize: '0.76rem', margin: '3px 0 0' }}>
+                      Agendar automaticamente a cada 15 dias, 21 dias, semanal ou mensal
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    style={{ width: '20px', height: '20px', accentColor: 'var(--primary-color, #e91e63)', cursor: 'pointer' }}
+                  />
+                </div>
+
+                {isRecurring && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px', borderTop: `1px solid ${borderCol}` }}>
+                    
+                    {/* Botões Rápidos de Sugestão / IA */}
+                    <div>
+                      <label style={{ fontSize: '0.76rem', color: textSec, fontWeight: 700, marginBottom: '6px', display: 'block' }}>
+                        ⚡ Sugestões Rápidas:
+                      </label>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setRecurrenceFreq('biweekly'); setRecurrenceDurationMonths(4); }}
+                          style={{ fontSize: '0.72rem', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${recurrenceFreq === 'biweekly' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : borderCol}`, background: recurrenceFreq === 'biweekly' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : bgInput, color: recurrenceFreq === 'biweekly' && recurrenceDurationMonths === 4 ? '#fff' : textMain, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          💅 A cada 15 dias (4 meses)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRecurrenceFreq('every_3_weeks'); setRecurrenceDurationMonths(4); }}
+                          style={{ fontSize: '0.72rem', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${recurrenceFreq === 'every_3_weeks' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : borderCol}`, background: recurrenceFreq === 'every_3_weeks' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : bgInput, color: recurrenceFreq === 'every_3_weeks' && recurrenceDurationMonths === 4 ? '#fff' : textMain, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          👁️ A cada 21 dias (4 meses)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRecurrenceFreq('weekly'); setRecurrenceDurationMonths(2); }}
+                          style={{ fontSize: '0.72rem', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${recurrenceFreq === 'weekly' && recurrenceDurationMonths === 2 ? 'var(--primary-color, #e91e63)' : borderCol}`, background: recurrenceFreq === 'weekly' && recurrenceDurationMonths === 2 ? 'var(--primary-color, #e91e63)' : bgInput, color: recurrenceFreq === 'weekly' && recurrenceDurationMonths === 2 ? '#fff' : textMain, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          📅 Semanal (2 meses)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRecurrenceFreq('daily'); setRecurrenceDurationMonths(4); }}
+                          style={{ fontSize: '0.72rem', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${recurrenceFreq === 'daily' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : borderCol}`, background: recurrenceFreq === 'daily' && recurrenceDurationMonths === 4 ? 'var(--primary-color, #e91e63)' : bgInput, color: recurrenceFreq === 'daily' && recurrenceDurationMonths === 4 ? '#fff' : textMain, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          ✨ Todo dia (4 meses)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.78rem', color: textSec }}>Frequência</label>
+                        <select value={recurrenceFreq} onChange={(e) => setRecurrenceFreq(e.target.value)} style={selectStyle}>
+                          <option value="biweekly">A cada 15 dias (Quinzenal)</option>
+                          <option value="every_3_weeks">A cada 21 dias (3 Semanas)</option>
+                          <option value="weekly">Semanal (A cada 7 dias)</option>
+                          <option value="monthly">Mensal (Mesmo dia do mês)</option>
+                          <option value="daily">Todo dia</option>
+                          <option value="custom">Personalizado (dias)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.78rem', color: textSec }}>Duração</label>
+                        <select value={recurrenceDurationMonths} onChange={(e) => setRecurrenceDurationMonths(Number(e.target.value))} style={selectStyle}>
+                          <option value="1">Durante 1 mês</option>
+                          <option value="2">Durante 2 meses</option>
+                          <option value="3">Durante 3 meses</option>
+                          <option value="4">Durante 4 meses</option>
+                          <option value="6">Durante 6 meses</option>
+                          <option value="12">Durante 1 ano</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {recurrenceFreq === 'custom' && (
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.78rem', color: textSec }}>Intervalo em dias</label>
+                        <input type="number" min="1" max="90" value={recurrenceCustomDays} onChange={(e) => setRecurrenceCustomDays(Number(e.target.value))} style={inputStyle} />
+                      </div>
+                    )}
+
+                    {/* Previsão das datas geradas */}
+                    <div style={{ background: bgInput, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${borderCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: textMain }}>
+                          📅 {recurringDates.length + 1} agendamentos gerados:
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--primary-color, #e91e63)', fontWeight: 800 }}>
+                          1 inicial + {recurringDates.length} repetições
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', maxHeight: '85px', overflowY: 'auto' }}>
+                        <span style={{ fontSize: '0.72rem', background: 'var(--primary-color, #e91e63)', color: '#fff', padding: '3px 7px', borderRadius: '4px', fontWeight: 800 }}>
+                          {formatShortDate(form.date)} (1º)
+                        </span>
+                        {recurringDates.map((rd, idx) => (
+                          <span key={rd} style={{ fontSize: '0.72rem', background: isLight ? '#e5e7eb' : '#333', color: textMain, padding: '3px 7px', borderRadius: '4px', fontWeight: 700 }}>
+                            {formatShortDate(rd)} ({idx + 2}º)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </section>
+            )}
 
             <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {statusOptions.map((status) => {

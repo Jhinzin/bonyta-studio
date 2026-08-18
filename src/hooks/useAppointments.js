@@ -46,6 +46,15 @@ export function useAppointments() {
     if (insertError) throw insertError
   }
 
+  const createManyAppointments = async (payloads) => {
+    const chunkSize = 50
+    for (let i = 0; i < payloads.length; i += chunkSize) {
+      const chunk = payloads.slice(i, i + chunkSize)
+      const { error: insertError } = await supabase.from('appointments').insert(chunk)
+      if (insertError) throw insertError
+    }
+  }
+
   const updateAppointment = async (id, payload) => {
     const { error: updateError } = await supabase.from('appointments').update(payload).eq('id', id)
     if (updateError) throw updateError
@@ -79,6 +88,7 @@ export function useAppointments() {
     loading,
     error,
     createAppointment,
+    createManyAppointments,
     updateAppointment,
     deleteAppointment,
     createProfessional,

@@ -99,7 +99,7 @@ function StudioApp() {
 
   const {
     professionals, appointments, loading, error,
-    createAppointment, updateAppointment, deleteAppointment, createProfessional, updateProfessional
+    createAppointment, createManyAppointments, updateAppointment, deleteAppointment, createProfessional, updateProfessional
   } = useAppointments()
   const access = useCurrentUserRole()
   const {
@@ -217,6 +217,15 @@ const handleSubmit = async (appointmentData) => {
 
       if (recordId) {
         await updateAppointment(recordId, payload)
+      } else if (appointmentData.recurringDates && appointmentData.recurringDates.length > 0) {
+        const allPayloads = [
+          payload,
+          ...appointmentData.recurringDates.map((recDate) => ({
+            ...payload,
+            date: recDate
+          }))
+        ]
+        await createManyAppointments(allPayloads)
       } else {
         await createAppointment(payload)
       }

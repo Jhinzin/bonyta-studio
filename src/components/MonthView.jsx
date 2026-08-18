@@ -118,7 +118,7 @@ export default function MonthView({ appointments, selectedDate, profFilter, them
           const isHoliday = BRAZIL_HOLIDAYS[holidayKey];
 
           const iso = `${year}-${monthStr}-${dayStr}`;
-          const dayApps = appointments.filter(a => a.date === iso && a.professional_id === profFilter);
+          const dayApps = appointments.filter(a => a.date === iso && (profFilter === 'todos' || a.professional_id === profFilter));
           const appCount = dayApps.length;
           const isToday = iso === formatDateToISO(new Date());
 

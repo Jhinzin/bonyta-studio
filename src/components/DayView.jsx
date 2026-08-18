@@ -180,16 +180,55 @@ export default function DayView({
                     const startTime = appointment.time.slice(0, 5)
                     const endTime = addMinutesToTime(appointment.time, appointment.duration_minutes)
 
-                    let cardBg = 'var(--primary-color, #e91e63)'
+                    // Estilo de acordo com a profissional
+                    let cardStyles = {}
+                    const sc = prof?.style_class || 'pink'
+                    const pName = (prof?.name || '').toLowerCase()
+
                     if (isBlock) {
-                      cardBg = 'repeating-linear-gradient(45deg, rgba(120,120,120,0.15), rgba(120,120,120,0.15) 10px, rgba(120,120,120,0.25) 10px, rgba(120,120,120,0.25) 20px)'
-                    } else if (appointment.status === 'concluido') {
-                      cardBg = '#10b981'
-                    } else if (appointment.status === 'faltou') {
-                      cardBg = '#ef4444'
-                    } else if (appointment.status === 'confirmado') {
-                      cardBg = '#3b82f6'
+                      cardStyles = {
+                        background: 'repeating-linear-gradient(45deg, rgba(120,120,120,0.18), rgba(120,120,120,0.18) 10px, rgba(120,120,120,0.28) 10px, rgba(120,120,120,0.28) 20px)',
+                        border: '1px dashed rgba(180, 180, 180, 0.4)',
+                        color: '#bbb',
+                        boxShadow: 'none'
+                      }
+                    } else if (sc === 'pink' || pName.startsWith('bea')) {
+                      cardStyles = {
+                        background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
+                        borderLeft: '4px solid #fda4af',
+                        boxShadow: '0 4px 12px rgba(225, 29, 72, 0.28)',
+                        color: '#ffffff'
+                      }
+                    } else if (sc === 'dark-pink' || pName.startsWith('carol')) {
+                      cardStyles = {
+                        background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                        borderLeft: '4px solid #c4b5fd',
+                        boxShadow: '0 4px 12px rgba(124, 58, 237, 0.28)',
+                        color: '#ffffff'
+                      }
+                    } else if (sc === 'black-theme' || pName.startsWith('maira')) {
+                      cardStyles = {
+                        background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+                        border: '1px solid rgba(245, 158, 11, 0.45)',
+                        borderLeft: '4px solid #f59e0b',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                        color: '#ffffff'
+                      }
+                    } else {
+                      cardStyles = {
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        borderLeft: '4px solid #7dd3fc',
+                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.28)',
+                        color: '#ffffff'
+                      }
                     }
+
+                    const statusBadgeStyle = {
+                      concluido: { bg: 'rgba(16, 185, 129, 0.3)', text: '#a7f3d0' },
+                      confirmado: { bg: 'rgba(59, 130, 246, 0.3)', text: '#bfdbfe' },
+                      pendente: { bg: 'rgba(245, 158, 11, 0.3)', text: '#fde68a' },
+                      faltou: { bg: 'rgba(239, 68, 68, 0.35)', text: '#fecaca' }
+                    }[appointment.status] || { bg: 'rgba(255,255,255,0.2)', text: '#fff' }
 
                     return (
                       <div
@@ -199,23 +238,20 @@ export default function DayView({
                           position: 'absolute',
                           top: `${(minutesFromStart / 60) * TIMELINE_CONFIG.hourHeight}px`,
                           height: `${(appointment.duration_minutes / 60) * TIMELINE_CONFIG.hourHeight}px`,
-                          left: '2px',
-                          right: '2px',
+                          left: '3px',
+                          right: '3px',
                           width: 'auto',
                           display: 'flex',
                           flexDirection: 'column',
                           overflow: 'hidden',
-                          padding: '7px',
-                          borderRadius: '6px',
+                          padding: '7px 8px',
+                          borderRadius: '8px',
                           zIndex: 10,
-                          background: cardBg,
-                          backgroundColor: isBlock ? 'rgba(80, 80, 80, 0.05)' : '',
-                          border: isBlock ? '1px dashed rgba(150, 150, 150, 0.4)' : 'none',
-                          color: isBlock ? '#aaa' : '#fff',
                           opacity: appointment.status === 'faltou' ? 0.64 : 1,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          boxShadow: isBlock ? 'none' : '0 2px 4px rgba(0,0,0,0.1)'
+                          boxSizing: 'border-box',
+                          ...cardStyles
                         }}
                         onClick={(event) => {
                           event.stopPropagation()
@@ -223,35 +259,39 @@ export default function DayView({
                         }}
                       >
                         {isBlock ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px', flexDirection: 'column', textAlign: 'center' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#888' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '6px', flexDirection: 'column', textAlign: 'center' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#bbb' }}>
                               <i className="fa-solid fa-ban" style={{ marginRight: '6px', color: '#ff4444' }}></i>
                               {appointment.service || 'Horario bloqueado'}
                             </span>
-                            <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                            <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>
                               {startTime} - {endTime}
                             </span>
                           </div>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: 'clamp(0.62rem, 1.8vw, 0.78rem)' }}>
-                              <span>{startTime} - {endTime}</span>
-                              <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0, opacity: 0.85, whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: 'clamp(0.64rem, 1.8vw, 0.78rem)' }}>
+                              <span style={{ color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                                <i className="fa-regular fa-clock" style={{ marginRight: '4px', opacity: 0.8 }}></i>
+                                {startTime} - {endTime}
+                              </span>
+                              <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', background: statusBadgeStyle.bg, color: statusBadgeStyle.text, padding: '2px 6px', borderRadius: '4px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                                 {statusLabel[appointment.status] || appointment.status}
                               </span>
                             </div>
 
-                            <div style={{ fontSize: 'clamp(0.74rem, 2.2vw, 0.92rem)', lineHeight: 1.15, margin: '4px 0 2px', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-                              {statusIcon[appointment.status] && <i className={`fa-solid ${statusIcon[appointment.status]}`} style={{ color: '#fff', fontSize: '0.7rem' }}></i>}
+                            <div style={{ fontSize: 'clamp(0.76rem, 2.2vw, 0.94rem)', fontWeight: 800, lineHeight: 1.2, margin: '4px 0 2px', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                              {statusIcon[appointment.status] && <i className={`fa-solid ${statusIcon[appointment.status]}`} style={{ color: statusBadgeStyle.text, fontSize: '0.72rem' }}></i>}
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.client_name}</span>
                             </div>
 
-                            <div style={{ fontSize: 'clamp(0.65rem, 2vw, 0.8rem)', opacity: 0.92, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ fontSize: 'clamp(0.68rem, 2vw, 0.82rem)', color: '#f3f4f6', opacity: 0.95, overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                               {appointment.service}
                             </div>
 
                             {appointment.observation && (
-                              <div style={{ fontSize: 'clamp(0.6rem, 1.8vw, 0.75rem)', marginTop: 'auto', fontStyle: 'italic', background: 'rgba(0, 0, 0, 0.2)', padding: '2px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontSize: 'clamp(0.6rem, 1.8vw, 0.72rem)', marginTop: 'auto', fontStyle: 'italic', background: 'rgba(0, 0, 0, 0.25)', color: '#fef08a', padding: '2px 5px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <i className="fa-solid fa-circle-info" style={{ marginRight: '4px' }}></i>
                                 {appointment.observation}
                               </div>
                             )}

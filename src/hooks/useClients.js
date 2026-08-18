@@ -34,10 +34,30 @@ export function useClients() {
     }
   };
 
+
+
   const deleteClient = async (id) => {
     const { error } = await supabase.from('clients').delete().eq('id', id);
     if (!error) setClients(prev => prev.filter(c => c.id !== id));
   };
 
-  return { clients, isLoading, createClient, updateClient, deleteClient };
+  const createManyClients = async (clientsArray) => {
+    setIsLoading(true);
+    try {
+      const chunkSize = 50;
+      for (let i = 0; i < clientsArray.length; i += chunkSize) {
+        const chunk = clientsArray.slice(i, i + chunkSize);
+        const { error } = await supabase.from('clients').insert(chunk);
+        if (error) {
+          console.error('Erro no lote de importação:', error);
+          throw error;
+        }
+      }
+      await fetchClients();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { clients, isLoading, createClient, createManyClients, updateClient, deleteClient, refreshClients: fetchClients };
 }

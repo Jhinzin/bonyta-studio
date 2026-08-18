@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useClients } from '../hooks/useClients'
 import { buildWhatsAppUrl, firstName } from '../utils/whatsapp'
+import ImportClientsModal from './ImportClientsModal'
 
 const emptyClient = {
   name: '',
@@ -40,8 +41,9 @@ const nextBirthdayLabel = (birthDate) => {
 }
 
 export default function ClientsView({ theme }) {
-  const { clients, isLoading, createClient, updateClient, deleteClient } = useClients()
+  const { clients, isLoading, createClient, createManyClients, updateClient, deleteClient } = useClients()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState(null)
   const [showMoreFields, setShowMoreFields] = useState(false)
   const [query, setQuery] = useState('')
@@ -119,12 +121,21 @@ export default function ClientsView({ theme }) {
           <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: textMain, margin: 0 }}>Clientes</h2>
           <p style={{ color: textSec, fontSize: '0.82rem', marginTop: '4px' }}>{clients.length} cadastradas</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          style={{ background: 'var(--primary-color, #e91e63)', color: '#fff', padding: '11px 14px', borderRadius: '8px', border: 'none', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          <i className="fa-solid fa-plus" style={{ marginRight: '8px' }}></i> Nova
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            style={{ background: bgCard, color: textMain, padding: '11px 13px', borderRadius: '8px', border: `1px solid ${borderCol}`, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem' }}
+            title="Importar lista de contatos em lote"
+          >
+            <i className="fa-solid fa-file-import" style={{ color: 'var(--primary-color, #e91e63)' }}></i> Importar
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            style={{ background: 'var(--primary-color, #e91e63)', color: '#fff', padding: '11px 14px', borderRadius: '8px', border: 'none', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem' }}
+          >
+            <i className="fa-solid fa-plus"></i> Nova
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
@@ -298,6 +309,13 @@ export default function ClientsView({ theme }) {
           </div>
         </div>
       )}
+
+      <ImportClientsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={createManyClients}
+        theme={theme}
+      />
     </div>
   )
 }
