@@ -192,27 +192,13 @@ body {
 /* CARDS FLUTUANTES DINÂMICOS */
 .dynamic-appointment-card {
     position: absolute; left: 3px; width: calc(100% - 6px); padding: 6px 8px;
-    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(214, 20, 90, 0.25);
     display: flex; flex-direction: column; justify-content: flex-start; z-index: 5;
     color: #ffffff !important;
     user-select: none;
     box-sizing: border-box;
-}
-.dynamic-appointment-card.pink {
-    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
-    border-left: 4px solid #fda4af !important;
-    color: #ffffff !important;
-}
-.dynamic-appointment-card.dark-pink {
-    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%) !important;
-    border-left: 4px solid #c4b5fd !important;
-    color: #ffffff !important;
-}
-.dynamic-appointment-card.black-theme {
-    background: linear-gradient(135deg, #18181b 0%, #27272a 100%) !important;
-    border: 1px solid rgba(245, 158, 11, 0.45) !important;
-    border-left: 4px solid #f59e0b !important;
-    color: #ffffff !important;
+    background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%) !important;
+    border-left: 4px solid #f48fb1 !important;
 }
 
 .dynamic-appointment-card .app-time { font-size: 10px; font-weight: 700; opacity: 0.9; color: #ffffff !important; }

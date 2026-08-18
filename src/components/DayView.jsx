@@ -182,8 +182,6 @@ export default function DayView({
 
                     // Estilo de acordo com a profissional
                     let cardStyles = {}
-                    const sc = prof?.style_class || 'pink'
-                    const pName = (prof?.name || '').toLowerCase()
 
                     if (isBlock) {
                       cardStyles = {
@@ -192,33 +190,11 @@ export default function DayView({
                         color: '#bbb',
                         boxShadow: 'none'
                       }
-                    } else if (sc === 'pink' || pName.startsWith('bea')) {
-                      cardStyles = {
-                        background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
-                        borderLeft: '4px solid #fda4af',
-                        boxShadow: '0 4px 12px rgba(225, 29, 72, 0.28)',
-                        color: '#ffffff'
-                      }
-                    } else if (sc === 'dark-pink' || pName.startsWith('carol')) {
-                      cardStyles = {
-                        background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-                        borderLeft: '4px solid #c4b5fd',
-                        boxShadow: '0 4px 12px rgba(124, 58, 237, 0.28)',
-                        color: '#ffffff'
-                      }
-                    } else if (sc === 'black-theme' || pName.startsWith('maira')) {
-                      cardStyles = {
-                        background: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
-                        border: '1px solid rgba(245, 158, 11, 0.45)',
-                        borderLeft: '4px solid #f59e0b',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
-                        color: '#ffffff'
-                      }
                     } else {
                       cardStyles = {
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                        borderLeft: '4px solid #7dd3fc',
-                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.28)',
+                        background: 'linear-gradient(135deg, #e91e63 0%, #c2185b 100%)',
+                        borderLeft: '4px solid #f48fb1',
+                        boxShadow: '0 4px 12px rgba(214, 20, 90, 0.28)',
                         color: '#ffffff'
                       }
                     }
