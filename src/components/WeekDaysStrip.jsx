@@ -29,9 +29,9 @@ export default function WeekDaysStrip({ selectedDate, onSelect, theme }) {
       className="week-days-strip" 
       ref={scrollRef}
       style={{ 
-        display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', padding: '12px 8px',
-        borderBottom: isLight ? '1px solid #e0e0e0' : '1px solid #333', alignItems: 'center',
-        background: isLight ? '#ffffff' : '#121212'
+        display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', padding: '6px 4px',
+        borderBottom: isLight ? '1px solid #e0e0e0' : '1px solid #2a2a3c', alignItems: 'center',
+        background: isLight ? '#ffffff' : '#0f0f14'
       }}
     >
       {days.map((d, i) => {
@@ -44,9 +44,9 @@ export default function WeekDaysStrip({ selectedDate, onSelect, theme }) {
           <React.Fragment key={i}>
             {isFirstDayOfMonth && (
               <div style={{
-                padding: '0 16px', color: 'var(--primary-color, #e91e63)', fontWeight: '800',
-                textTransform: 'uppercase', fontSize: '0.8rem', borderLeft: isLight ? '2px dashed #ccc' : '2px dashed #444',
-                height: '34px', display: 'flex', alignItems: 'center', flexShrink: 0
+                padding: '0 10px', color: 'var(--primary-color, #e91e63)', fontWeight: '800',
+                textTransform: 'uppercase', fontSize: '0.7rem', borderLeft: isLight ? '2px dashed #ccc' : '2px dashed #444',
+                height: '28px', display: 'flex', alignItems: 'center', flexShrink: 0
               }}>
                 {monthName}
               </div>
@@ -56,27 +56,26 @@ export default function WeekDaysStrip({ selectedDate, onSelect, theme }) {
               className={`day-strip-item ${isSelected ? 'active' : ''}`}
               onClick={() => onSelect(d)}
               style={{
-                minWidth: '55px', padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center',
-                cursor: 'pointer', borderRadius: '12px', flexShrink: 0,
+                minWidth: '44px', padding: '6px 3px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                cursor: 'pointer', borderRadius: '10px', flexShrink: 0,
                 background: isSelected ? 'var(--primary-color, #e91e63)' : bgUnselected,
                 color: isSelected ? '#fff' : textUnselected,
-                margin: '0 4px',
+                margin: '0 2px',
                 border: isTodayReal && !isSelected ? '2px solid var(--primary-color, #e91e63)' : '2px solid transparent',
                 boxShadow: isLight && !isSelected ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.15s ease'
               }}
             >
-              {/* APENAS UMA TAG SPAN PARA O NOME DO DIA */}
               <span style={{ 
-                fontSize: '0.75rem', 
-                fontWeight: '600',
+                fontSize: '0.64rem', 
+                fontWeight: '700',
                 color: isSelected ? '#fff' : (isTodayReal ? 'var(--primary-color, #e91e63)' : textLabelUnselected),
                 textTransform: 'uppercase',
-                marginBottom: '2px'
+                marginBottom: '1px'
               }}>
                 {SHORT_DAYS[d.getDay()]}
               </span>
-              <span style={{ fontSize: '1.25rem', fontWeight: '800' }}>
+              <span style={{ fontSize: '1rem', fontWeight: '800' }}>
                 {d.getDate()}
               </span>
             </div>

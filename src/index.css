@@ -107,16 +107,16 @@ input, textarea, select {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-logo {
     background: linear-gradient(135deg, var(--accent-pink), #8e0e3b);
-    color: #fff; font-weight: 700; font-size: 16px;
-    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
+    color: #fff; font-weight: 700; font-size: 15px;
+    width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
 }
-.brand h2 { font-size: 16px; font-weight: 700; }
+.brand h2 { font-size: 15px; font-weight: 700; }
 
 .header-actions {
     display: flex;
@@ -126,20 +126,21 @@ input, textarea, select {
 
 .theme-toggle {
     background: var(--bg-tertiary); border: none; color: var(--text-primary);
-    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 
 .header-signout {
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    padding: 6px 12px;
+    border-radius: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    gap: 6px;
 }
 
 /* NAVEGAÇÃO DE DATAS */
@@ -147,19 +148,19 @@ input, textarea, select {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
-.date-navigator-bar h3 { font-size: 15px; font-weight: 700; }
+.date-navigator-bar h3 { font-size: 14px; font-weight: 700; }
 .nav-arrow {
     background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary);
-    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
 }
 
 /* CHAVEADOR DE ABAS */
-.view-switcher-container { display: flex; justify-content: center; margin-bottom: 12px; }
-.view-switcher { display: flex; background-color: var(--bg-tertiary); padding: 4px; border-radius: var(--radius-md); width: 100%; }
+.view-switcher-container { display: flex; justify-content: center; margin-bottom: 6px; }
+.view-switcher { display: flex; background-color: var(--bg-tertiary); padding: 3px; border-radius: var(--radius-md); width: 100%; }
 .switch-btn {
-    flex: 1; background: none; border: none; padding: 10px 0; font-size: 13px; font-weight: 600;
+    flex: 1; background: none; border: none; padding: 7px 0; font-size: 12px; font-weight: 700;
     color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer; transition: 0.2s;
 }
 .switch-btn.active { background-color: var(--bg-secondary); color: var(--accent-pink); font-weight: 700; box-shadow: 0 2px 6px var(--shadow-main); }

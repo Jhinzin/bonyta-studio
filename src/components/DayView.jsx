@@ -67,7 +67,7 @@ export default function DayView({
   const fullDateStr = selDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
-    <div className="timeline-scroll-wrapper" style={{ width: '100%', flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="timeline-scroll-wrapper" style={{ width: '100%', flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 0 }}>
       {diffDays !== 0 && (
         <button
           type="button"
@@ -75,14 +75,14 @@ export default function DayView({
           style={{
             position: 'fixed',
             left: '50%',
-            bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+            bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
             transform: 'translateX(-50%)',
             zIndex: 9997,
             border: 'none',
             borderRadius: '10px',
             background: 'var(--primary-color, #e91e63)',
             color: '#fff',
-            padding: '12px 22px',
+            padding: '10px 20px',
             fontWeight: 800,
             boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
             cursor: 'pointer'
@@ -92,7 +92,7 @@ export default function DayView({
         </button>
       )}
 
-      <div style={{ textAlign: 'center', padding: '12px', fontSize: '1rem', color: 'var(--primary-color, #e91e63)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color, #333)', flexShrink: 0 }}>
+      <div style={{ textAlign: 'center', padding: '7px', fontSize: '0.85rem', color: 'var(--primary-color, #e91e63)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color, #333)', flexShrink: 0 }}>
         {relativeText}{fullDateStr}
       </div>
 
@@ -100,11 +100,11 @@ export default function DayView({
         <div style={{ width: '60px', flexShrink: 0, borderRight: '1px solid var(--border-color, #333)' }} />
         <div style={{ display: 'flex', flex: 1, width: 'calc(100% - 60px)' }}>
           {visibleProfs.length === 0 ? (
-            <div style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', width: '100%' }}>Nenhuma profissional cadastrada.</div>
+            <div style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', width: '100%' }}>Nenhuma profissional cadastrada.</div>
           ) : (
             visibleProfs.map((prof) => (
-              <div key={prof.id} style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border-color, #333)', textAlign: 'center', padding: '12px 4px', overflow: 'hidden' }}>
-                <span style={{ fontSize: 'clamp(0.78rem, 2.5vw, 0.98rem)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+              <div key={prof.id} style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border-color, #333)', textAlign: 'center', padding: '7px 4px', overflow: 'hidden' }}>
+                <span style={{ fontSize: 'clamp(0.75rem, 2.5vw, 0.92rem)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
                   {prof.name}
                 </span>
               </div>
