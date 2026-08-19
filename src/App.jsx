@@ -17,7 +17,7 @@ import WeekDaysStrip from './components/WeekDaysStrip'
 import DayView from './components/DayView'
 import WeekView from './components/WeekView'
 import MonthView from './components/MonthView'
-import BottomNav from './components/BottomNav'
+import SidebarDrawer from './components/SidebarDrawer'
 import AppointmentModal from './components/AppointmentModal'
 import ServicesView from './components/ServicesView'
 import ClientsView from './components/ClientsView'
@@ -66,6 +66,7 @@ function StudioApp() {
   const [prefill, setPrefill] = useState(null)
   const [activeTab, setActiveTab] = useState('agenda')// Pode ser 'agenda', 'comandas', 'clientes', 'servicos'
   const [profModalOpen, setProfModalOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   // ====================================================================
   // COLE ESTAS LINHAS AQUI NO TOPO, JUNTO COM SEUS OUTROS USESTATES!
   // Isso vai dar vida aos seletores de Clientes e Serviços até ligarmos o banco.
@@ -448,6 +449,7 @@ const handleSubmit = async (appointmentData) => {
             onPrev={() => navigateDate(-1)}
             onNext={() => navigateDate(1)}
             allowAllProfessionals={!access.isProfessional}
+            onMenuClick={() => setSidebarOpen(true)}
           />
 
           {view === 'dia' && (
@@ -524,29 +526,47 @@ const handleSubmit = async (appointmentData) => {
           2. ABA DE SERVIÇOS (Mostra só na aba Serviços)
           ========================================= */}
       {activeTab === 'servicos' && (
-        <ServicesView theme={theme} />
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+            <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
+            <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Serviços & Pacotes</h2>
+          </div>
+          <ServicesView theme={theme} />
+        </>
       )}
 
   {/* =========================================
           3. ABA DE CLIENTES (Mostra só na aba Clientes)
           ========================================= */}
       {activeTab === 'clientes' && (
-        <ClientsView theme={theme} />
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+            <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
+            <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Clientes & Anamnese</h2>
+          </div>
+          <ClientsView theme={theme} />
+        </>
       )}
 
       {/* =========================================
           4. ABA DE FINANCEIRO / DASHBOARD
           ========================================= */}
       {activeTab === 'financeiro' && (
-        <DashboardView 
-          appointments={scopedAppointments} 
-          professionals={scopedProfessionals} 
-          products={products}
-          onUpdateProfessional={access.canSeeFullFinance ? updateProfessional : null}
-          accessMode={access.canSeeFullFinance ? 'owner' : 'professional'}
-          currentProfessionalId={access.professionalId}
-          theme={theme} 
-        />
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+            <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
+            <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Finanças</h2>
+          </div>
+          <DashboardView 
+            appointments={scopedAppointments} 
+            professionals={scopedProfessionals} 
+            products={products}
+            onUpdateProfessional={access.canSeeFullFinance ? updateProfessional : null}
+            accessMode={access.canSeeFullFinance ? 'owner' : 'professional'}
+            currentProfessionalId={access.professionalId}
+            theme={theme} 
+          />
+        </>
       )}
 
       {isFabOpen && (
@@ -568,7 +588,7 @@ const handleSubmit = async (appointmentData) => {
             position: 'fixed',
             left: '12px',
             right: '12px',
-            bottom: '88px',
+            bottom: '100px',
             zIndex: 9999,
             maxWidth: '560px',
             margin: '0 auto',
@@ -652,7 +672,7 @@ const handleSubmit = async (appointmentData) => {
         style={{
           position: 'fixed',
           right: '20px',
-          bottom: '100px',
+          bottom: '28px',
           zIndex: 10000,
           width: '60px',
           height: '60px',
@@ -673,11 +693,13 @@ const handleSubmit = async (appointmentData) => {
       {/* =========================================
           4. MENU INFERIOR (Fixo no rodapé sempre)
           ========================================= */}
-      <BottomNav 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        theme={theme}
+      <SidebarDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         allowedTabs={allowedTabs}
+        theme={theme}
       />
 
       {/* =========================================
