@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { appointmentMessageTemplates, buildWhatsAppUrl } from '../utils/whatsapp'
-import { TIMELINE_CONFIG } from '../utils'
+import { TIMELINE_CONFIG, addMinutesToTime } from '../utils'
 import { generateRecurringDates, formatShortDate } from '../utils/recurrence'
 
 const emptyForm = {

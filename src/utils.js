@@ -11,3 +11,12 @@ export const TIMELINE_CONFIG = {
   endHour: 23,
   hourHeight: 90
 }
+
+export const addMinutesToTime = (time, minutesToAdd) => {
+  if (!time) return '--:--'
+  const [hours, minutes] = String(time).split(':').map(Number)
+  const totalMinutes = (hours || 0) * 60 + (minutes || 0) + Number(minutesToAdd || 0)
+  const nextHours = Math.floor(totalMinutes / 60) % 24
+  const nextMinutes = totalMinutes % 60
+  return `${String(nextHours).padStart(2, '0')}:${String(nextMinutes).padStart(2, '0')}`
+}

@@ -32,6 +32,7 @@ import DashboardView from './components/DashboardView'
 import ProfessionalModal from './components/ProfessionalModal';
 import PublicBookingView from './components/PublicBookingView';
 import AuthGate from './components/AuthGate';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const isPublicBooking = window.location.pathname.startsWith('/agendar')
@@ -43,7 +44,13 @@ export default function App() {
   }, [isPublicBooking])
 
   if (isPublicBooking) return <PublicBookingView />
-  return <AuthGate><StudioApp /></AuthGate>
+  return (
+    <ErrorBoundary>
+      <AuthGate>
+        <StudioApp />
+      </AuthGate>
+    </ErrorBoundary>
+  )
 }
 
 function StudioApp() {
