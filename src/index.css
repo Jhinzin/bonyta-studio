@@ -87,15 +87,20 @@ input, textarea, select {
 .app-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
 }
 
-/* HEADER OTIMIZADO PARA MOBILE */
+/* HEADER OTIMIZADO PARA MOBILE COM NOTCH / STATUS BAR */
 .main-header {
     background-color: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
-    padding: 12px 16px 4px 16px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: 6px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
 }
 
 .header-top-row {
@@ -226,7 +231,15 @@ input, textarea, select {
 .dynamic-appointment-card .app-service { font-size: 11px; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f3f4f6 !important; }
 
 /* VISÃO SEMANAL VERSÃO CARDS MOBILE */
-.weekly-cards-container { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; height: 100%; padding-bottom: 90px; }
+.weekly-cards-container { 
+    padding: 16px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    overflow-y: auto; 
+    flex: 1;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
+}
 .weekly-day-board { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; }
 .weekly-day-board h4 { font-size: 13px; color: var(--accent-pink); margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
 .weekly-board-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }

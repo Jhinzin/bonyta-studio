@@ -57,8 +57,8 @@ export default function App() {
 function StudioApp() {
   const [editingBlock, setEditingBlock] = useState(null);
   const [isFabOpen, setIsFabOpen] = useState(false);
-  const [blockModalOpen, setBlockModalOpen] = useState(false); // <-- NOVO ESTADO
-  const [modalMode, setModalMode] = useState('appointment'); // 'appointment' | 'block'
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('appointment');
   const [theme, setTheme] = useState('dark')
   const [view, setView] = useState('dia')
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
@@ -72,14 +72,11 @@ function StudioApp() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState(null)
   const [prefill, setPrefill] = useState(null)
-  const [activeTab, setActiveTab] = useState('agenda')// Pode ser 'agenda', 'comandas', 'clientes', 'servicos'
+  const [activeTab, setActiveTab] = useState('agenda')
   const [profModalOpen, setProfModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-  // ====================================================================
-  // COLE ESTAS LINHAS AQUI NO TOPO, JUNTO COM SEUS OUTROS USESTATES!
-  // Isso vai dar vida aos seletores de Clientes e Serviços até ligarmos o banco.
-  // ====================================================================
+
   const { clients, createClient, updateClient } = useClients()
   const { services } = useServices()
   const { products } = useProducts()
@@ -96,14 +93,11 @@ function StudioApp() {
     error: bookingRequestsError,
     updateRequestStatus
   } = useBookingRequests()
-  // ====================================================================
-  
 
-  // MÁGICA UI/UX: Sempre que voltar para a aba da Agenda, força o retorno para o Dia de Hoje
   useEffect(() => {
     if (activeTab === 'agenda' && !prefill?.date) {
-      setSelectedDate(new Date()); // Reseta a data para o dia atual real
-      setView('dia');             // Garante que abre na visão diária padronizada
+      setSelectedDate(new Date());
+      setView('dia');
     }
   }, [activeTab, prefill?.date]);
 
@@ -157,15 +151,15 @@ function StudioApp() {
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
- const navigateDate = (dir) => {
+  const navigateDate = (dir) => {
     setSelectedDate(prev => {
       const nd = new Date(prev);
       if (view === 'mes') {
-        nd.setMonth(nd.getMonth() + dir); // Pula 1 mês exato
+        nd.setMonth(nd.getMonth() + dir);
       } else if (view === 'semana') {
-        nd.setDate(nd.getDate() + (dir * 7)); // Pula 7 dias exatos
+        nd.setDate(nd.getDate() + (dir * 7));
       } else {
-        nd.setDate(nd.getDate() + dir); // Pula 1 dia
+        nd.setDate(nd.getDate() + dir);
       }
       return nd;
     });
@@ -177,16 +171,14 @@ function StudioApp() {
     setModalOpen(true)
   }
 
-const openEditModal = (appointment) => {
+  const openEditModal = (appointment) => {
     setEditingAppointment(appointment);
-    
-    // ROTEADOR DE INTENÇÃO DE INTERFACE
     if (appointment.is_block) {
-      setEditingBlock(appointment); // Seta o bloco para o Modal de Bloqueio
-      setBlockModalOpen(true);       // Abre o Modal de Bloqueio dedicado
+      setEditingBlock(appointment);
+      setBlockModalOpen(true);
     } else {
       setModalMode('appointment');
-      setModalOpen(true);            // Abre o Modal de Cliente padrão
+      setModalOpen(true);
     }
   };
 
@@ -196,9 +188,8 @@ const openEditModal = (appointment) => {
     setPrefill(null)
   }
 
-const handleSubmit = async (appointmentData) => {
+  const handleSubmit = async (appointmentData) => {
     try {
-      // Prepara os dados exatos unificando o Serviço Base + Itens Extras da Comanda
       const payload = {
         client_id: appointmentData.client_id,
         service_id: appointmentData.service_id,
@@ -211,15 +202,11 @@ const handleSubmit = async (appointmentData) => {
         is_block: appointmentData.is_block || false,
         client_name: appointmentData.client_name,
         service: appointmentData.service,
-        
-        // Armazena os valores financeiros totais (Serviço + Produtos da Comanda)
         total_price: Number(appointmentData.total_price || 0),
         total_cost: Number(appointmentData.total_cost || 0),
         amount_paid: Number(appointmentData.amount_paid || 0),
         payment_method: appointmentData.payment_method || 'nao_informado',
         payment_status: appointmentData.payment_status || 'aberto',
-        
-        // Salva a lista de produtos extras como um texto (JSON) para o banco guardar tudo em uma linha só
         comanda_json: appointmentData.comanda ? JSON.stringify(appointmentData.comanda) : null
       };
 
@@ -250,7 +237,6 @@ const handleSubmit = async (appointmentData) => {
     }
   };
 
-  // Certifique-se de limpar os estados de edição ao fechar os modais
   const defaultTimeByPeriod = (period) => {
     if (period === 'manha') return '09:00'
     if (period === 'noite') return '18:00'
@@ -315,7 +301,6 @@ const handleSubmit = async (appointmentData) => {
     }
   }
 
-  // Lógica de UX: Força a seleção de um profissional se mudar para Semana/Mês
   useEffect(() => {
     if (access.isProfessional && access.professionalId) {
       setProfFilter(access.professionalId)
@@ -445,7 +430,7 @@ const handleSubmit = async (appointmentData) => {
     <div className="app-container">
 
       {/* =========================================
-          1. ABA DA AGENDA (Mostra só na aba Agenda)
+          1. ABA DA AGENDA
           ========================================= */}
       {activeTab === 'agenda' && (
         <>
@@ -521,7 +506,6 @@ const handleSubmit = async (appointmentData) => {
                       setSelectedDate(date);
                       setView('dia');
                     }}
-                    /* AQUI ESTÃO OS DOIS COMANDOS NOVOS: */
                     onPrev={() => navigateDate(-1)}
                     onNext={() => navigateDate(1)}
                   />
@@ -533,11 +517,11 @@ const handleSubmit = async (appointmentData) => {
       )}
 
       {/* =========================================
-          2. ABA DE SERVIÇOS (Mostra só na aba Serviços)
+          2. ABA DE SERVIÇOS
           ========================================= */}
       {activeTab === 'servicos' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: 'max(14px, env(safe-area-inset-top)) 16px 12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
             <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
             <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Serviços & Pacotes</h2>
           </div>
@@ -545,12 +529,12 @@ const handleSubmit = async (appointmentData) => {
         </>
       )}
 
-  {/* =========================================
-          3. ABA DE CLIENTES (Mostra só na aba Clientes)
+      {/* =========================================
+          3. ABA DE CLIENTES
           ========================================= */}
       {activeTab === 'clientes' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: 'max(14px, env(safe-area-inset-top)) 16px 12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
             <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
             <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Clientes & Anamnese</h2>
           </div>
@@ -563,7 +547,7 @@ const handleSubmit = async (appointmentData) => {
           ========================================= */}
       {activeTab === 'financeiro' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: 'max(14px, env(safe-area-inset-top)) 16px 12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
             <span className="brand-logo" onClick={() => setSidebarOpen(true)} style={{ cursor: 'pointer' }} role="button" aria-label="Abrir menu">B</span>
             <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Finanças</h2>
           </div>
@@ -579,6 +563,7 @@ const handleSubmit = async (appointmentData) => {
         </>
       )}
 
+      {/* BACKDROP DO MENU RÁPIDO */}
       {isFabOpen && (
         <div
           onClick={() => setIsFabOpen(false)}
@@ -592,13 +577,14 @@ const handleSubmit = async (appointmentData) => {
         />
       )}
 
+      {/* PAINEL DE AÇÕES RÁPIDAS (FAB) */}
       {isFabOpen && (
         <section
           style={{
             position: 'fixed',
             left: '12px',
             right: '12px',
-            bottom: '100px',
+            bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
             zIndex: 9999,
             maxWidth: '560px',
             margin: '0 auto',
@@ -676,13 +662,14 @@ const handleSubmit = async (appointmentData) => {
         </section>
       )}
 
+      {/* BOTÃO FLUTUANTE DE AÇÕES RÁPIDAS (+) */}
       <button
         type="button"
         onClick={() => setIsFabOpen(!isFabOpen)}
         style={{
           position: 'fixed',
           right: '20px',
-          bottom: '28px',
+          bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
           zIndex: 10000,
           width: '60px',
           height: '60px',
@@ -700,9 +687,8 @@ const handleSubmit = async (appointmentData) => {
       >
         <i className="fa-solid fa-plus"></i>
       </button>
-      {/* =========================================
-          4. MENU INFERIOR (Fixo no rodapé sempre)
-          ========================================= */}
+
+      {/* MENU LATERAL / DRAWER */}
       <SidebarDrawer
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -712,9 +698,7 @@ const handleSubmit = async (appointmentData) => {
         theme={theme}
       />
 
-      {/* =========================================
-          5. MODAL DE AGENDAMENTO (Oculto até clicar)
-          ========================================= */}
+      {/* MODAL DE AGENDAMENTO */}
       <AppointmentModal
         open={modalOpen}
         mode={modalMode}
@@ -732,28 +716,24 @@ const handleSubmit = async (appointmentData) => {
         appointments={scopedAppointments}
       />
 
-       {/* =========================================
-          6. MODAL DE BLOQUEIO / COMPROMISSO ADMINISTRATIVO
-          ========================================= */}
+      {/* MODAL DE BLOQUEIO */}
       <BlockModal
         open={blockModalOpen}
         onClose={handleCloseBlockModal}
         onSubmit={handleSubmit}
-        onDelete={handleDelete} /* Reutiliza a sua função de deleção do Supabase existente */
+        onDelete={handleDelete}
         professionals={scopedProfessionals}
         defaultDate={formatDateToISO(selectedDate)}
         theme={theme}
-        editingBlock={editingBlock} /* Passa o bloco atual se for edição */
+        editingBlock={editingBlock}
       />
 
-      {/* =========================================
-          7. MODAL DE LISTA DE ESPERA
-          ========================================= */}
+      {/* MODAL DE LISTA DE ESPERA */}
       <WaitlistModal
         open={waitlistModalOpen}
         onClose={() => setWaitlistModalOpen(false)}
-        clients={clients} /* Certifique-se de passar o array de clients que você já tem no App.jsx */
-        services={services} /* E o array de services */
+        clients={clients}
+        services={services}
         professionals={scopedProfessionals}
         defaultDate={formatDateToISO(selectedDate)}
         theme={theme}
@@ -764,7 +744,7 @@ const handleSubmit = async (appointmentData) => {
         onRemove={removeWaitlistEntry}
       />
 
-      {/* 8. MODAL DE SOLICITAÇÕES DA LANDING */}
+      {/* MODAL DE SOLICITAÇÕES DA LANDING */}
       <BookingRequestsModal
         open={bookingRequestsModalOpen}
         onClose={() => setBookingRequestsModalOpen(false)}
@@ -781,6 +761,7 @@ const handleSubmit = async (appointmentData) => {
         onCreateAppointment={openAppointmentFromBookingRequest}
       />
 
+      {/* CENTRAL DO DIA */}
       <DailyCenterModal
         open={dailyCenterModalOpen}
         onClose={() => setDailyCenterModalOpen(false)}
@@ -795,6 +776,7 @@ const handleSubmit = async (appointmentData) => {
         onUpdateAppointment={updateAppointment}
       />
 
+      {/* CENTRAL DE COMUNICAÇÃO */}
       <CommunicationCenterModal
         open={communicationCenterOpen}
         onClose={() => setCommunicationCenterOpen(false)}
@@ -803,6 +785,7 @@ const handleSubmit = async (appointmentData) => {
         onLogMessage={logMessage}
       />
 
+      {/* HORÁRIOS DE EXPEDIENTE */}
       <WorkingHoursModal
         open={workingHoursModalOpen}
         onClose={() => setWorkingHoursModalOpen(false)}
@@ -815,6 +798,7 @@ const handleSubmit = async (appointmentData) => {
         onSave={saveProfessionalSchedule}
       />
 
+      {/* CONTROLE DE ACESSO */}
       <AccessControlModal
         open={accessControlModalOpen}
         onClose={() => setAccessControlModalOpen(false)}
@@ -826,7 +810,7 @@ const handleSubmit = async (appointmentData) => {
         onSave={saveUserProfile}
       />
 
-     {/* 9. MODAL DE NOVA PROFISSIONAL */}
+      {/* CADASTRO DE PROFISSIONAL */}
       <ProfessionalModal
         open={profModalOpen}
         onClose={() => setProfModalOpen(false)}
@@ -837,7 +821,7 @@ const handleSubmit = async (appointmentData) => {
         theme={theme}
       />
 
-      {/* 10. MODAL DE PESQUISA DE AGENDAMENTOS POR CLIENTE */}
+      {/* BUSCA DE AGENDAMENTOS POR CLIENTE */}
       <SearchAppointmentsModal
         open={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}

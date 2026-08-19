@@ -40,13 +40,14 @@ export default function MonthView({ appointments, selectedDate, profFilter, them
   return (
     <div style={{ 
       width: '100%', 
-      /* MÁGICA DO SCROLL: Define altura máxima e ativa a barra de rolagem */
-      height: 'calc(100vh - 160px)', 
+      flex: 1,
+      height: '100%',
       overflowY: 'auto', 
       overflowX: 'hidden',
-      paddingBottom: '120px', 
       background: bgMain,
-      padding: viewMode === 'contador' ? '16px' : '16px 0 120px 0' // Tira as bordas na visão lista
+      padding: viewMode === 'contador' 
+        ? '16px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px' 
+        : '16px 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0'
     }}>
       
       {/* 1. SELETORES */}

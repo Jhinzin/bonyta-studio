@@ -67,7 +67,7 @@ export default function DayView({
   const fullDateStr = selDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
-    <div className="timeline-scroll-wrapper" style={{ width: '100%', flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: '120px' }}>
+    <div className="timeline-scroll-wrapper" style={{ width: '100%', flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
       {diffDays !== 0 && (
         <button
           type="button"
@@ -75,7 +75,7 @@ export default function DayView({
           style={{
             position: 'fixed',
             left: '50%',
-            bottom: '104px',
+            bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
             transform: 'translateX(-50%)',
             zIndex: 9997,
             border: 'none',
