@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 
 export default function Header({
-  theme, toggleTheme, view, setView, profFilter, setProfFilter, professionals, selectedDate, onPrev, onNext, allowAllProfessionals = true, onMenuClick
+  theme, toggleTheme, view, setView, profFilter, setProfFilter, professionals, selectedDate, onPrev, onNext, allowAllProfessionals = true, onMenuClick, onOpenSearch
 }) {
   const [profDropdownOpen, setProfDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
@@ -53,8 +53,31 @@ export default function Header({
           <h2>Bonyta Studio</h2>
         </div>
 
-        {/* AÇÕES: Tema + Filtro Profissional compacto */}
+        {/* AÇÕES: Pesquisa + Tema + Filtro Profissional compacto */}
         <div className="header-actions">
+          <button
+            type="button"
+            className="search-toggle"
+            onClick={onOpenSearch}
+            aria-label="Pesquisar cliente"
+            title="Pesquisar agendamentos da cliente no ano"
+            style={{
+              background: isLight ? '#eaedf2' : 'var(--bg-tertiary, #171721)',
+              border: `1px solid ${isLight ? '#dbdfe7' : '#1f1f2e'}`,
+              color: 'var(--primary-color, #e91e63)',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '0.9rem'
+            }}
+          >
+            <i className="fa-solid fa-magnifying-glass"></i>
+          </button>
+
           <button className="theme-toggle" onClick={toggleTheme} aria-label="Alternar tema">
             <i className={theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun'}></i>
           </button>

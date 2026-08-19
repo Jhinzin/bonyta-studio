@@ -33,6 +33,7 @@ import ProfessionalModal from './components/ProfessionalModal';
 import PublicBookingView from './components/PublicBookingView';
 import AuthGate from './components/AuthGate';
 import ErrorBoundary from './components/ErrorBoundary';
+import SearchAppointmentsModal from './components/SearchAppointmentsModal';
 
 export default function App() {
   const isPublicBooking = window.location.pathname.startsWith('/agendar')
@@ -74,6 +75,7 @@ function StudioApp() {
   const [activeTab, setActiveTab] = useState('agenda')// Pode ser 'agenda', 'comandas', 'clientes', 'servicos'
   const [profModalOpen, setProfModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   // ====================================================================
   // COLE ESTAS LINHAS AQUI NO TOPO, JUNTO COM SEUS OUTROS USESTATES!
   // Isso vai dar vida aos seletores de Clientes e Serviços até ligarmos o banco.
@@ -457,6 +459,7 @@ const handleSubmit = async (appointmentData) => {
             onNext={() => navigateDate(1)}
             allowAllProfessionals={!access.isProfessional}
             onMenuClick={() => setSidebarOpen(true)}
+            onOpenSearch={() => setSearchModalOpen(true)}
           />
 
           {view === 'dia' && (
@@ -831,6 +834,17 @@ const handleSubmit = async (appointmentData) => {
           await createProfessional(newProf)
           setProfModalOpen(false);
         }}
+        theme={theme}
+      />
+
+      {/* 10. MODAL DE PESQUISA DE AGENDAMENTOS POR CLIENTE */}
+      <SearchAppointmentsModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        appointments={scopedAppointments}
+        professionals={scopedProfessionals}
+        clients={clients}
+        onSelectAppointment={openEditModal}
         theme={theme}
       />
     </div>

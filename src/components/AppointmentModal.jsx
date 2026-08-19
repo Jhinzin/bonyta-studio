@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { appointmentMessageTemplates, buildWhatsAppUrl } from '../utils/whatsapp'
 import { TIMELINE_CONFIG, addMinutesToTime } from '../utils'
 import { generateRecurringDates, formatShortDate } from '../utils/recurrence'
 
 const emptyForm = {
   client_id: '',
+  client_name: '',
   service_id: '',
+  service: '',
   professional_id: '',
   date: '',
   time: '',
@@ -140,6 +142,15 @@ export default function AppointmentModal({
   const [showComanda, setShowComanda] = useState(false)
   const [comandaItens, setComandaItens] = useState([])
 
+  // Autocomplete / Searchable inputs
+  const [clientSearch, setClientSearch] = useState('')
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
+  const [serviceSearch, setServiceSearch] = useState('')
+  const [serviceDropdownOpen, setServiceDropdownOpen] = useState(false)
+
+  const clientDropdownRef = useRef(null)
+  const serviceDropdownRef = useRef(null)
+
   // Estado de Recorrência
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurrenceFreq, setRecurrenceFreq] = useState('biweekly')
@@ -181,26 +192,56 @@ export default function AppointmentModal({
 
     if (editingAppointment) {
       setForm({ ...emptyForm, ...editingAppointment })
+      const clientObj = (clients || []).find((c) => c && String(c.id) === String(editingAppointment.client_id))
+      setClientSearch(clientObj?.name || editingAppointment.client_name || '')
+
+      const serviceObj = (services || []).find((s) => s && String(s.id) === String(editingAppointment.service_id))
+      setServiceSearch(serviceObj?.name || editingAppointment.service || '')
+
       const savedItems = editingAppointment.comanda || parseSavedItems(editingAppointment.comanda_json)
       setComandaItens(Array.isArray(savedItems) ? savedItems : [])
       setShowComanda(Array.isArray(savedItems) && savedItems.length > 0)
       return
     }
 
+    const initialClientId = prefill?.client_id || ''
+    const initialClient = (clients || []).find((c) => c && String(c.id) === String(initialClientId))
+    setClientSearch(initialClient?.name || prefill?.client_name || '')
+
+    const initialServiceId = prefill?.service_id || ''
+    const initialService = (services || []).find((s) => s && String(s.id) === String(initialServiceId))
+    setServiceSearch(initialService?.name || prefill?.service || '')
+
     setForm({
       ...emptyForm,
       date: prefill?.date || defaultDate || '',
-      client_id: prefill?.client_id || '',
-      service_id: prefill?.service_id || '',
+      client_id: initialClientId,
+      client_name: initialClient?.name || prefill?.client_name || '',
+      service_id: initialServiceId,
+      service: initialService?.name || prefill?.service || '',
       professional_id: prefill?.professional_id || professionals?.[0]?.id || '',
       time: prefill?.time || '',
-      duration_minutes: prefill?.duration_minutes || emptyForm.duration_minutes,
+      duration_minutes: prefill?.duration_minutes || initialService?.duration_minutes || emptyForm.duration_minutes,
       observation: prefill?.observation || '',
       booking_request_id: prefill?.booking_request_id || null
     })
     setComandaItens([])
     setShowComanda(false)
-  }, [open, defaultDate, professionals, editingAppointment, prefill])
+  }, [open, defaultDate, professionals, editingAppointment, prefill, clients, services])
+
+  // Fecha dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target)) {
+        setClientDropdownOpen(false)
+      }
+      if (serviceDropdownRef.current && !serviceDropdownRef.current.contains(e.target)) {
+        setServiceDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const recurringDates = useMemo(() => {
     if (!isRecurring || !form.date) return []
@@ -215,6 +256,22 @@ export default function AppointmentModal({
       return []
     }
   }, [isRecurring, form.date, recurrenceFreq, recurrenceDurationMonths, recurrenceCustomDays])
+
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase()
+    if (!q) return (clients || []).slice(0, 30)
+    return (clients || []).filter((c) =>
+      c && ((c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q))
+    ).slice(0, 30)
+  }, [clientSearch, clients])
+
+  const filteredServices = useMemo(() => {
+    const q = serviceSearch.trim().toLowerCase()
+    if (!q) return services || []
+    return (services || []).filter((s) =>
+      s && (s.name || '').toLowerCase().includes(q)
+    )
+  }, [serviceSearch, services])
 
   if (!open) return null
 
@@ -237,6 +294,27 @@ export default function AppointmentModal({
   const amountPending = Math.max(totalGeral - amountPaid, 0)
   const depositAmount = totalGeral > 0 ? Math.round(totalGeral * 0.3 * 100) / 100 : 0
 
+  const handleSelectClient = (client) => {
+    setForm((current) => ({
+      ...current,
+      client_id: client.id,
+      client_name: client.name
+    }))
+    setClientSearch(client.name)
+    setClientDropdownOpen(false)
+  }
+
+  const handleSelectService = (service) => {
+    setForm((current) => ({
+      ...current,
+      service_id: service.id,
+      service: service.name,
+      duration_minutes: Number(service.duration_minutes || current.duration_minutes || 60)
+    }))
+    setServiceSearch(service.name)
+    setServiceDropdownOpen(false)
+  }
+
   const handleAddItem = (productId) => {
     if (!productId) return
     const product = (products || []).find((item) => item && String(item.id) === String(productId))
@@ -248,18 +326,9 @@ export default function AppointmentModal({
     setComandaItens((current) => (Array.isArray(current) ? current : []).filter((_, itemIndex) => itemIndex !== index))
   }
 
-  const handleServiceChange = (serviceId) => {
-    const nextService = (services || []).find((service) => service && String(service.id) === String(serviceId))
-    setForm((current) => ({
-      ...current,
-      service_id: serviceId,
-      duration_minutes: nextService?.duration_minutes || current.duration_minutes
-    }))
-  }
-
   const handleWhatsApp = (template = 'lembrete') => {
-    if (!selectedClient) return alert('Selecione uma cliente.')
-    if (!selectedClient.phone) return alert('Cliente sem telefone valido.')
+    if (!selectedClient && !form.client_name) return alert('Selecione uma cliente.')
+    if (!selectedClient?.phone) return alert('Cliente sem telefone valido para WhatsApp.')
 
     const textBuilder = appointmentMessageTemplates[template] || appointmentMessageTemplates.lembrete
     const text = textBuilder({
@@ -276,10 +345,14 @@ export default function AppointmentModal({
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!form.client_id && !form.client_name) return alert('Selecione uma cliente ou informe o nome.')
-    if (!form.professional_id || !form.date || !form.time) return alert('Preencha profissional, data e horario.')
+    const finalClientName = selectedClient?.name || form.client_name || clientSearch.trim()
+    const finalServiceName = selectedService?.name || form.service || serviceSearch.trim()
+
+    if (!finalClientName) return alert('Por favor, informe ou selecione o nome da cliente.')
+    if (!finalServiceName) return alert('Por favor, informe ou selecione o serviço.')
+    if (!form.professional_id || !form.date || !form.time) return alert('Preencha profissional, data e horário.')
     if (scheduleConflict) {
-      return alert(`Este horario conflita com ${scheduleConflict.is_block ? 'um bloqueio' : scheduleConflict.client_name || 'outro atendimento'} das ${formatTime(scheduleConflict.time)} as ${addMinutesToTime(scheduleConflict.time, scheduleConflict.duration_minutes)}.`)
+      return alert(`Este horário conflita com ${scheduleConflict.is_block ? 'um bloqueio' : scheduleConflict.client_name || 'outro atendimento'} das ${formatTime(scheduleConflict.time)} às ${addMinutesToTime(scheduleConflict.time, scheduleConflict.duration_minutes)}.`)
     }
 
     setSaving(true)
@@ -288,8 +361,10 @@ export default function AppointmentModal({
         ...form,
         is_block: false,
         duration_minutes: Number(form.duration_minutes || 60),
-        client_name: selectedClient?.name || form.client_name,
-        service: selectedService?.name || form.service,
+        client_name: finalClientName,
+        client_id: form.client_id || null,
+        service: finalServiceName,
+        service_id: form.service_id || null,
         total_price: totalGeral,
         total_cost: totalCost,
         amount_paid: amountPaid,
@@ -312,7 +387,7 @@ export default function AppointmentModal({
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${borderCol}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
           <div style={{ minWidth: 0 }}>
             <h3 style={{ color: 'var(--primary-color, #e91e63)', fontWeight: 900, margin: 0, fontSize: '1.12rem' }}>
-              {editingAppointment ? 'Detalhes do horario' : 'Novo agendamento'}
+              {editingAppointment ? 'Detalhes do horário' : 'Novo agendamento'}
             </h3>
             <div style={{ color: textSec, fontSize: '0.78rem', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {form.time || '--:--'} {selectedProfessional ? `com ${selectedProfessional.name}` : ''}
@@ -326,21 +401,197 @@ export default function AppointmentModal({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div style={{ padding: '18px 20px 24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <section style={{ background: bgCard, border: `1px solid ${borderCol}`, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
+              {/* BUSCA DIGITÁVEL DE CLIENTE E SERVIÇO */}
               <div className="appointment-core-grid">
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Cliente</label>
-                  <select value={form.client_id || ''} onChange={(event) => setForm({ ...form, client_id: event.target.value })} style={selectStyle}>
-                    <option value="">{form.client_name ? `${form.client_name} (Avulso)` : 'Selecione...'}</option>
-                    {(clients || []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
-                  </select>
+                
+                {/* AUTOCOMPLETE DE CLIENTE */}
+                <div ref={clientDropdownRef} style={{ position: 'relative' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec, fontWeight: 600 }}>
+                    <i className="fa-solid fa-user" style={{ marginRight: '6px', color: 'var(--primary-color, #e91e63)' }}></i>
+                    Cliente (digite para buscar ou cadastrar)
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Amanda, Silvia..."
+                      value={clientSearch}
+                      onFocus={() => setClientDropdownOpen(true)}
+                      onChange={(e) => {
+                        setClientSearch(e.target.value)
+                        setForm((current) => ({
+                          ...current,
+                          client_name: e.target.value,
+                          client_id: '' // Limpa ID se digitar nome avulso
+                        }))
+                        setClientDropdownOpen(true)
+                      }}
+                      style={{ ...inputStyle, paddingRight: clientSearch ? '36px' : '13px' }}
+                    />
+                    {clientSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientSearch('')
+                          setForm((current) => ({ ...current, client_id: '', client_name: '' }))
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: textSec,
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  {clientDropdownOpen && filteredClients.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '4px',
+                        maxHeight: '190px',
+                        overflowY: 'auto',
+                        background: bgMain,
+                        border: `1px solid ${borderCol}`,
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                        zIndex: 1000,
+                        padding: '4px'
+                      }}
+                    >
+                      {filteredClients.map((client) => (
+                        <div
+                          key={client.id}
+                          onClick={() => handleSelectClient(client)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.86rem',
+                            color: textMain,
+                            background: form.client_id === client.id ? 'rgba(233, 30, 99, 0.15)' : 'transparent',
+                            borderBottom: `1px solid ${borderCol}`
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(233, 30, 99, 0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = form.client_id === client.id ? 'rgba(233, 30, 99, 0.15)' : 'transparent'}
+                        >
+                          <strong>{client.name}</strong>
+                          {client.phone && <span style={{ color: textSec, fontSize: '0.76rem' }}>{client.phone}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Servico</label>
-                  <select value={form.service_id || ''} onChange={(event) => handleServiceChange(event.target.value)} style={selectStyle}>
-                    <option value="">{form.service ? `${form.service} (${formatCurrency(form.total_price)})` : 'Selecione...'}</option>
-                    {(services || []).map((service) => <option key={service.id} value={service.id}>{service.name} ({formatCurrency(service.price)})</option>)}
-                  </select>
+
+                {/* AUTOCOMPLETE DE SERVIÇO */}
+                <div ref={serviceDropdownRef} style={{ position: 'relative' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec, fontWeight: 600 }}>
+                    <i className="fa-solid fa-sparkles" style={{ marginRight: '6px', color: 'var(--primary-color, #e91e63)' }}></i>
+                    Serviço (digite para buscar)
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Banho de Gel, Volume..."
+                      value={serviceSearch}
+                      onFocus={() => setServiceDropdownOpen(true)}
+                      onChange={(e) => {
+                        setServiceSearch(e.target.value)
+                        setForm((current) => ({
+                          ...current,
+                          service: e.target.value,
+                          service_id: ''
+                        }))
+                        setServiceDropdownOpen(true)
+                      }}
+                      style={{ ...inputStyle, paddingRight: serviceSearch ? '36px' : '13px' }}
+                    />
+                    {serviceSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceSearch('')
+                          setForm((current) => ({ ...current, service_id: '', service: '' }))
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: textSec,
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  {serviceDropdownOpen && filteredServices.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '4px',
+                        maxHeight: '190px',
+                        overflowY: 'auto',
+                        background: bgMain,
+                        border: `1px solid ${borderCol}`,
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                        zIndex: 1000,
+                        padding: '4px'
+                      }}
+                    >
+                      {filteredServices.map((service) => (
+                        <div
+                          key={service.id}
+                          onClick={() => handleSelectService(service)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.86rem',
+                            color: textMain,
+                            background: form.service_id === service.id ? 'rgba(233, 30, 99, 0.15)' : 'transparent',
+                            borderBottom: `1px solid ${borderCol}`
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(233, 30, 99, 0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = form.service_id === service.id ? 'rgba(233, 30, 99, 0.15)' : 'transparent'}
+                        >
+                          <div>
+                            <strong>{service.name}</strong>
+                            <div style={{ color: textSec, fontSize: '0.74rem' }}>{service.duration_minutes} min</div>
+                          </div>
+                          <span style={{ color: 'var(--primary-color, #e91e63)', fontWeight: 800 }}>
+                            {formatCurrency(service.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
               </div>
 
               <div className="appointment-schedule-grid">
@@ -349,7 +600,7 @@ export default function AppointmentModal({
                   <input type="date" required value={form.date || ''} onChange={(event) => setForm({ ...form, date: event.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Horario</label>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Horário</label>
                   <input type="time" required value={form.time || ''} onChange={(event) => setForm({ ...form, time: event.target.value })} style={inputStyle} />
                 </div>
                 <div>
@@ -364,9 +615,9 @@ export default function AppointmentModal({
                 <div style={{ background: isLight ? '#fef2f2' : 'rgba(239,68,68,0.13)', color: isLight ? '#991b1b' : '#fecaca', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '10px', padding: '11px 12px', fontSize: '0.82rem', lineHeight: 1.4 }}>
                   <strong style={{ display: 'block', marginBottom: '4px' }}>
                     <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i>
-                    Horario indisponivel
+                    Horário indisponível
                   </strong>
-                  Conflita com {scheduleConflict.is_block ? 'um bloqueio' : scheduleConflict.client_name || 'outro atendimento'} das {formatTime(scheduleConflict.time)} as {addMinutesToTime(scheduleConflict.time, scheduleConflict.duration_minutes)}.
+                  Conflita com {scheduleConflict.is_block ? 'um bloqueio' : scheduleConflict.client_name || 'outro atendimento'} das {formatTime(scheduleConflict.time)} às {addMinutesToTime(scheduleConflict.time, scheduleConflict.duration_minutes)}.
                   {availableSuggestions.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '7px', marginTop: '10px' }}>
                       <span style={{ fontWeight: 800 }}>Livres:</span>
@@ -386,7 +637,7 @@ export default function AppointmentModal({
               )}
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Duracao</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Duração</label>
                 <select value={form.duration_minutes || 60} onChange={(event) => setForm({ ...form, duration_minutes: event.target.value })} style={selectStyle}>
                   <option value="30">30 minutos</option>
                   <option value="45">45 minutos</option>
@@ -434,7 +685,7 @@ export default function AppointmentModal({
                 {isRecurring && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px', borderTop: `1px solid ${borderCol}` }}>
                     
-                    {/* Botões Rápidos de Sugestão / IA */}
+                    {/* Botões Rápidos de Sugestão */}
                     <div>
                       <label style={{ fontSize: '0.76rem', color: textSec, fontWeight: 700, marginBottom: '6px', display: 'block' }}>
                         ⚡ Sugestões Rápidas:
@@ -562,12 +813,12 @@ export default function AppointmentModal({
             </section>
 
             <section>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Observacao para o atendimento</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Observação para o atendimento</label>
               <textarea
                 rows="3"
                 value={form.observation || ''}
                 onChange={(event) => setForm({ ...form, observation: event.target.value })}
-                placeholder="Ex: alergia, preferencia, sinal pago, detalhe do alongamento..."
+                placeholder="Ex: alergia, preferência, sinal pago, detalhe do procedimento..."
                 style={{ ...inputStyle, resize: 'none', lineHeight: 1.4 }}
               />
             </section>
@@ -593,7 +844,7 @@ export default function AppointmentModal({
 
                   {(!products || products.length === 0) && (
                     <div style={{ color: textSec, fontSize: '0.8rem', lineHeight: 1.35 }}>
-                      Cadastre produtos e extras na aba Catalogo &gt; Produtos para usar aqui.
+                      Cadastre produtos e extras na aba Catálogo &gt; Produtos para usar aqui.
                     </div>
                   )}
 
@@ -614,7 +865,7 @@ export default function AppointmentModal({
                   )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.84rem', color: textSec }}>
-                    <span>Servico</span><strong style={{ color: textMain, textAlign: 'right' }}>{formatCurrency(servicePrice)}</strong>
+                    <span>Serviço</span><strong style={{ color: textMain, textAlign: 'right' }}>{formatCurrency(servicePrice)}</strong>
                     <span>Extras</span><strong style={{ color: textMain, textAlign: 'right' }}>{formatCurrency(extrasPrice)}</strong>
                   </div>
 
@@ -738,7 +989,7 @@ export default function AppointmentModal({
               )}
               <button type="button" onClick={onClose} disabled={saving} style={{ flex: 1, background: 'transparent', color: textMain, border: `1px solid ${borderCol}`, borderRadius: '8px', padding: '12px', cursor: 'pointer', fontWeight: 800 }}>Voltar</button>
               <button type="submit" disabled={saving || Boolean(scheduleConflict)} style={{ flex: 2, background: 'var(--primary-color, #e91e63)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 900, padding: '12px', cursor: scheduleConflict ? 'not-allowed' : 'pointer', opacity: saving || scheduleConflict ? 0.7 : 1 }}>
-                {saving ? 'Gravando...' : scheduleConflict ? 'Horario ocupado' : 'Salvar'}
+                {saving ? 'Gravando...' : scheduleConflict ? 'Horário ocupado' : 'Salvar'}
               </button>
             </div>
           </div>
