@@ -49,9 +49,26 @@ export default class ErrorBoundary extends React.Component {
             <h3 style={{ margin: '0 0 8px', fontSize: '1.2rem', fontWeight: 800 }}>
               Ops! Ocorreu um erro
             </h3>
-            <p style={{ color: '#8e8e9a', fontSize: '0.85rem', margin: '0 0 16px', lineHeight: 1.4 }}>
-              Não se preocupe, seus dados estão seguros. Clique no botão abaixo para recarregar a tela.
+            <p style={{ color: '#8e8e9a', fontSize: '0.85rem', margin: '0 0 12px', lineHeight: 1.4 }}>
+              Não se preocupe, seus dados estão seguros.
             </p>
+            {this.state.error && (
+              <pre style={{
+                background: 'rgba(239,68,68,0.15)',
+                color: '#fca5a5',
+                padding: '10px',
+                borderRadius: '8px',
+                fontSize: '0.75rem',
+                textAlign: 'left',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                marginBottom: '16px'
+              }}>
+                {this.state.error.message || String(this.state.error)}
+              </pre>
+            )}
             <button
               type="button"
               onClick={this.handleReset}

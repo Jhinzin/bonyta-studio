@@ -48,7 +48,8 @@ export function generateRecurringDates({
 }
 
 export function formatShortDate(iso) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}`
+  if (!iso || typeof iso !== 'string') return ''
+  const parts = iso.split('-')
+  if (parts.length < 3) return String(iso)
+  return `${parts[2]}/${parts[1]}`
 }

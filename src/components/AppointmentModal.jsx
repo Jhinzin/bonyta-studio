@@ -56,6 +56,7 @@ const formatCurrency = (value) => (
 )
 
 const timeToMinutes = (time) => {
+  if (!time) return null
   const [hours, minutes] = String(time || '').slice(0, 5).split(':').map(Number)
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
   return hours * 60 + minutes
@@ -73,8 +74,8 @@ const roundUpToHalfHour = (minutes) => Math.ceil(minutes / 30) * 30
 
 const rangesOverlap = (startA, endA, startB, endB) => startA < endB && startB < endA
 
-const findScheduleConflict = ({ appointments, form, editingAppointment }) => {
-  if (!form.professional_id || !form.date || !form.time || !form.duration_minutes) return null
+const findScheduleConflict = ({ appointments = [], form, editingAppointment }) => {
+  if (!form || !form.professional_id || !form.date || !form.time || !form.duration_minutes) return null
 
   const start = timeToMinutes(form.time)
   const duration = Number(form.duration_minutes || 0)
@@ -83,7 +84,8 @@ const findScheduleConflict = ({ appointments, form, editingAppointment }) => {
   const end = start + duration
   const editingId = form.id || editingAppointment?.id
 
-  return appointments.find((appointment) => {
+  return (appointments || []).find((appointment) => {
+    if (!appointment) return false
     if (editingId && String(appointment.id) === String(editingId)) return false
     if (appointment.status === 'cancelado') return false
     if (appointment.date !== form.date) return false
@@ -97,14 +99,14 @@ const findScheduleConflict = ({ appointments, form, editingAppointment }) => {
   }) || null
 }
 
-const findAvailableSlots = ({ appointments, form, editingAppointment, limit = 3 }) => {
-  if (!form.professional_id || !form.date || !form.duration_minutes) return []
+const findAvailableSlots = ({ appointments = [], form, editingAppointment, limit = 3 }) => {
+  if (!form || !form.professional_id || !form.date || !form.duration_minutes) return []
 
   const duration = Number(form.duration_minutes || 0)
   if (duration <= 0) return []
 
-  const startLimit = TIMELINE_CONFIG.startHour * 60
-  const endLimit = TIMELINE_CONFIG.endHour * 60
+  const startLimit = (TIMELINE_CONFIG?.startHour ?? 8) * 60
+  const endLimit = (TIMELINE_CONFIG?.endHour ?? 23) * 60
   const preferredStart = timeToMinutes(form.time)
   const firstCandidate = roundUpToHalfHour(Math.max(preferredStart ?? startLimit, startLimit))
   const slots = []
@@ -123,7 +125,7 @@ export default function AppointmentModal({
   onClose,
   onSubmit,
   onDelete,
-  professionals,
+  professionals = [],
   defaultDate,
   editingAppointment,
   prefill,
@@ -180,17 +182,17 @@ export default function AppointmentModal({
     if (editingAppointment) {
       setForm({ ...emptyForm, ...editingAppointment })
       const savedItems = editingAppointment.comanda || parseSavedItems(editingAppointment.comanda_json)
-      setComandaItens(savedItems)
-      setShowComanda(savedItems.length > 0)
+      setComandaItens(Array.isArray(savedItems) ? savedItems : [])
+      setShowComanda(Array.isArray(savedItems) && savedItems.length > 0)
       return
     }
 
     setForm({
       ...emptyForm,
-      date: prefill?.date || defaultDate,
+      date: prefill?.date || defaultDate || '',
       client_id: prefill?.client_id || '',
       service_id: prefill?.service_id || '',
-      professional_id: prefill?.professional_id || professionals[0]?.id || '',
+      professional_id: prefill?.professional_id || professionals?.[0]?.id || '',
       time: prefill?.time || '',
       duration_minutes: prefill?.duration_minutes || emptyForm.duration_minutes,
       observation: prefill?.observation || '',
@@ -202,18 +204,19 @@ export default function AppointmentModal({
 
   if (!open) return null
 
-  const selectedClient = clients.find((client) => String(client.id) === String(form.client_id))
-  const selectedService = services.find((service) => String(service.id) === String(form.service_id))
-  const selectedProfessional = professionals.find((professional) => String(professional.id) === String(form.professional_id))
+  const selectedClient = (clients || []).find((client) => client && String(client.id) === String(form.client_id))
+  const selectedService = (services || []).find((service) => service && String(service.id) === String(form.service_id))
+  const selectedProfessional = (professionals || []).find((professional) => professional && String(professional.id) === String(form.professional_id))
+  
   const scheduleConflict = findScheduleConflict({ appointments, form, editingAppointment })
   const availableSuggestions = scheduleConflict
     ? findAvailableSlots({ appointments, form, editingAppointment })
     : []
 
-  const servicePrice = selectedService ? Number(selectedService.price) : 0
-  const serviceCost = selectedService ? Number(selectedService.material_cost) : 0
-  const extrasPrice = comandaItens.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0)
-  const extrasCost = comandaItens.reduce((sum, item) => sum + Number(item.cost || 0) * Number(item.qty || 1), 0)
+  const servicePrice = selectedService ? Number(selectedService.price || 0) : Number(form.total_price || 0)
+  const serviceCost = selectedService ? Number(selectedService.material_cost || 0) : Number(form.total_cost || 0)
+  const extrasPrice = (Array.isArray(comandaItens) ? comandaItens : []).reduce((sum, item) => sum + Number(item?.price || 0) * Number(item?.qty || 1), 0)
+  const extrasCost = (Array.isArray(comandaItens) ? comandaItens : []).reduce((sum, item) => sum + Number(item?.cost || 0) * Number(item?.qty || 1), 0)
   const totalGeral = servicePrice + extrasPrice
   const totalCost = serviceCost + extrasCost
   const amountPaid = Number(form.amount_paid || 0)
@@ -222,17 +225,17 @@ export default function AppointmentModal({
 
   const handleAddItem = (productId) => {
     if (!productId) return
-    const product = products.find((item) => String(item.id) === String(productId))
+    const product = (products || []).find((item) => item && String(item.id) === String(productId))
     if (!product) return
-    setComandaItens((current) => [...current, { ...product, qty: 1 }])
+    setComandaItens((current) => [...(Array.isArray(current) ? current : []), { ...product, qty: 1 }])
   }
 
   const handleRemoveItem = (index) => {
-    setComandaItens((current) => current.filter((_, itemIndex) => itemIndex !== index))
+    setComandaItens((current) => (Array.isArray(current) ? current : []).filter((_, itemIndex) => itemIndex !== index))
   }
 
   const handleServiceChange = (serviceId) => {
-    const nextService = services.find((service) => String(service.id) === String(serviceId))
+    const nextService = (services || []).find((service) => service && String(service.id) === String(serviceId))
     setForm((current) => ({
       ...current,
       service_id: serviceId,
@@ -246,10 +249,10 @@ export default function AppointmentModal({
 
     const textBuilder = appointmentMessageTemplates[template] || appointmentMessageTemplates.lembrete
     const text = textBuilder({
-      clientName: selectedClient.name || form.client_name,
+      clientName: selectedClient?.name || form.client_name || 'Cliente',
       date: form.date,
       time: form.time,
-      service: selectedService?.name || form.service,
+      service: selectedService?.name || form.service || 'Atendimento',
       professional: selectedProfessional?.name,
       totalPrice: totalGeral,
       depositAmount
@@ -259,17 +262,21 @@ export default function AppointmentModal({
 
   const recurringDates = useMemo(() => {
     if (!isRecurring || !form.date) return []
-    return generateRecurringDates({
-      startDate: form.date,
-      frequency: recurrenceFreq,
-      durationMonths: recurrenceDurationMonths,
-      customDays: recurrenceCustomDays
-    })
+    try {
+      return generateRecurringDates({
+        startDate: form.date,
+        frequency: recurrenceFreq,
+        durationMonths: recurrenceDurationMonths,
+        customDays: recurrenceCustomDays
+      }) || []
+    } catch {
+      return []
+    }
   }, [isRecurring, form.date, recurrenceFreq, recurrenceDurationMonths, recurrenceCustomDays])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!form.client_id || !form.service_id) return alert('Selecione cliente e servico.')
+    if (!form.client_id && !form.client_name) return alert('Selecione uma cliente ou informe o nome.')
     if (!form.professional_id || !form.date || !form.time) return alert('Preencha profissional, data e horario.')
     if (scheduleConflict) {
       return alert(`Este horario conflita com ${scheduleConflict.is_block ? 'um bloqueio' : scheduleConflict.client_name || 'outro atendimento'} das ${formatTime(scheduleConflict.time)} as ${addMinutesToTime(scheduleConflict.time, scheduleConflict.duration_minutes)}.`)
@@ -280,9 +287,9 @@ export default function AppointmentModal({
       await onSubmit({
         ...form,
         is_block: false,
-        duration_minutes: Number(form.duration_minutes),
-        client_name: selectedClient?.name,
-        service: selectedService?.name,
+        duration_minutes: Number(form.duration_minutes || 60),
+        client_name: selectedClient?.name || form.client_name,
+        service: selectedService?.name || form.service,
         total_price: totalGeral,
         total_cost: totalCost,
         amount_paid: amountPaid,
@@ -322,16 +329,16 @@ export default function AppointmentModal({
               <div className="appointment-core-grid">
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Cliente</label>
-                  <select required value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} style={selectStyle}>
-                    <option value="">Selecione...</option>
-                    {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                  <select value={form.client_id || ''} onChange={(event) => setForm({ ...form, client_id: event.target.value })} style={selectStyle}>
+                    <option value="">{form.client_name ? `${form.client_name} (Avulso)` : 'Selecione...'}</option>
+                    {(clients || []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Servico</label>
-                  <select required value={form.service_id} onChange={(event) => handleServiceChange(event.target.value)} style={selectStyle}>
-                    <option value="">Selecione...</option>
-                    {services.map((service) => <option key={service.id} value={service.id}>{service.name} ({formatCurrency(service.price)})</option>)}
+                  <select value={form.service_id || ''} onChange={(event) => handleServiceChange(event.target.value)} style={selectStyle}>
+                    <option value="">{form.service ? `${form.service} (${formatCurrency(form.total_price)})` : 'Selecione...'}</option>
+                    {(services || []).map((service) => <option key={service.id} value={service.id}>{service.name} ({formatCurrency(service.price)})</option>)}
                   </select>
                 </div>
               </div>
@@ -339,16 +346,16 @@ export default function AppointmentModal({
               <div className="appointment-schedule-grid">
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Data</label>
-                  <input type="date" required value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} style={inputStyle} />
+                  <input type="date" required value={form.date || ''} onChange={(event) => setForm({ ...form, date: event.target.value })} style={inputStyle} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Horario</label>
-                  <input type="time" required value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} style={inputStyle} />
+                  <input type="time" required value={form.time || ''} onChange={(event) => setForm({ ...form, time: event.target.value })} style={inputStyle} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Profissional</label>
-                  <select required value={form.professional_id} onChange={(event) => setForm({ ...form, professional_id: event.target.value })} style={selectStyle}>
-                    {professionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
+                  <select required value={form.professional_id || ''} onChange={(event) => setForm({ ...form, professional_id: event.target.value })} style={selectStyle}>
+                    {(professionals || []).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -380,7 +387,7 @@ export default function AppointmentModal({
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.82rem', color: textSec }}>Duracao</label>
-                <select value={form.duration_minutes} onChange={(event) => setForm({ ...form, duration_minutes: event.target.value })} style={selectStyle}>
+                <select value={form.duration_minutes || 60} onChange={(event) => setForm({ ...form, duration_minutes: event.target.value })} style={selectStyle}>
                   <option value="30">30 minutos</option>
                   <option value="45">45 minutos</option>
                   <option value="60">1 hora</option>
@@ -579,18 +586,18 @@ export default function AppointmentModal({
                 <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <select onChange={(event) => { handleAddItem(event.target.value); event.target.value = '' }} style={selectStyle}>
                     <option value="">+ Adicionar produto ou extra...</option>
-                    {products.map((product) => (
+                    {(products || []).map((product) => (
                       <option key={product.id} value={product.id}>{product.name} (+ {formatCurrency(product.price)})</option>
                     ))}
                   </select>
 
-                  {products.length === 0 && (
+                  {(!products || products.length === 0) && (
                     <div style={{ color: textSec, fontSize: '0.8rem', lineHeight: 1.35 }}>
                       Cadastre produtos e extras na aba Catalogo &gt; Produtos para usar aqui.
                     </div>
                   )}
 
-                  {comandaItens.length > 0 && (
+                  {Array.isArray(comandaItens) && comandaItens.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {comandaItens.map((item, index) => (
                         <div key={`${item.id}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: bgMain, padding: '9px 10px', borderRadius: '8px', fontSize: '0.85rem' }}>
