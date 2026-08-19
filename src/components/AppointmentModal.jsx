@@ -202,6 +202,20 @@ export default function AppointmentModal({
     setShowComanda(false)
   }, [open, defaultDate, professionals, editingAppointment, prefill])
 
+  const recurringDates = useMemo(() => {
+    if (!isRecurring || !form.date) return []
+    try {
+      return generateRecurringDates({
+        startDate: form.date,
+        frequency: recurrenceFreq,
+        durationMonths: recurrenceDurationMonths,
+        customDays: recurrenceCustomDays
+      }) || []
+    } catch {
+      return []
+    }
+  }, [isRecurring, form.date, recurrenceFreq, recurrenceDurationMonths, recurrenceCustomDays])
+
   if (!open) return null
 
   const selectedClient = (clients || []).find((client) => client && String(client.id) === String(form.client_id))
@@ -259,20 +273,6 @@ export default function AppointmentModal({
     })
     window.open(buildWhatsAppUrl(selectedClient.phone, text), '_blank', 'noopener,noreferrer')
   }
-
-  const recurringDates = useMemo(() => {
-    if (!isRecurring || !form.date) return []
-    try {
-      return generateRecurringDates({
-        startDate: form.date,
-        frequency: recurrenceFreq,
-        durationMonths: recurrenceDurationMonths,
-        customDays: recurrenceCustomDays
-      }) || []
-    } catch {
-      return []
-    }
-  }, [isRecurring, form.date, recurrenceFreq, recurrenceDurationMonths, recurrenceCustomDays])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
