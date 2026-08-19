@@ -83,10 +83,11 @@ export default function BlockModal({
   };
 
   return (
-    <div className="modal-overlay active" style={{ zIndex: 99999 }}>
+    <div className="modal-overlay active" onClick={onClose} style={{ zIndex: 99999 }}>
       <div 
         className="modal-box" 
-        style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100vh', padding: '0', margin: '0', borderRadius: '0', background: bgMain }}
+        onClick={(e) => e.stopPropagation()}
+        style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '92vh', padding: '0', margin: '0', borderRadius: '16px', background: bgMain, overflow: 'hidden' }}
       >
         <div className="modal-header" style={{ padding: '20px 24px', borderBottom: `1px solid ${borderCol}` }}>
           <h3 style={{ color: 'var(--primary-color, #e91e63)', fontWeight: 'bold' }}>

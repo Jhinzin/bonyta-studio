@@ -300,8 +300,8 @@ export default function AppointmentModal({
   }
 
   return (
-    <div className="modal-overlay active" style={{ zIndex: 99999 }}>
-      <div className="modal-box" style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100vh', padding: 0, background: bgMain }}>
+    <div className="modal-overlay active" onClick={onClose} style={{ zIndex: 99999 }}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '92vh', borderRadius: '16px', padding: 0, background: bgMain, overflow: 'hidden' }}>
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${borderCol}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
           <div style={{ minWidth: 0 }}>
             <h3 style={{ color: 'var(--primary-color, #e91e63)', fontWeight: 900, margin: 0, fontSize: '1.12rem' }}>

@@ -47,8 +47,8 @@ export default function ProfessionalModal({ open, onClose, onSubmit, theme }) {
   };
 
   return (
-    <div className="modal-overlay active" style={{ zIndex: 99999 }}>
-      <div className="modal-box" style={{ background: bgMain, padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div className="modal-overlay active" onClick={onClose} style={{ zIndex: 99999 }}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ background: bgMain, padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${borderCol}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, color: 'var(--primary-color, #e91e63)', fontWeight: 'bold' }}>
@@ -77,51 +77,58 @@ export default function ProfessionalModal({ open, onClose, onSubmit, theme }) {
           </select>
 
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>Acerto financeiro</label>
-          <select value={form.compensation_type} onChange={e => setForm({...form, compensation_type: e.target.value})} style={inputStyle}>
-            <option value="studio">Fixo do estudio / sem repasse</option>
-            <option value="commission">Porcentagem</option>
-            <option value="rent_share">Aluguel / divisao de custo</option>
+          <select value={form.compensation_type} onChange={e => setForm({ ...form, compensation_type: e.target.value })} style={inputStyle}>
+            <option value="studio">100% Studio / Funcionaria fixa</option>
+            <option value="commission">Comissao sobre os servicos (%)</option>
+            <option value="rent">Aluguel de espaco / Cadeira fixa (R$)</option>
+            <option value="hybrid">Hibrido (Comissao + Aluguel)</option>
           </select>
 
-          {form.compensation_type === 'commission' && (
-            <>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>% da profissional</label>
+          {(form.compensation_type === 'commission' || form.compensation_type === 'hybrid') && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>
+                Porcentagem da Profissional (%)
+              </label>
               <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
+                type="number" min="0" max="100" step="1"
+                placeholder="Ex: 50 para 50%"
                 value={form.commission_percent}
-                onChange={e => setForm({...form, commission_percent: e.target.value})}
-                style={inputStyle}
+                onChange={e => setForm({ ...form, commission_percent: e.target.value })}
+                style={{ ...inputStyle, marginBottom: 0 }}
               />
-            </>
+              <small style={{ color: textSec, fontSize: '0.78rem', display: 'block', marginTop: '4px' }}>
+                Quanto ela recebe do valor cobrado no servico.
+              </small>
+            </div>
           )}
 
-          {form.compensation_type === 'rent_share' && (
-            <>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>Valor mensal pago ao estudio</label>
+          {(form.compensation_type === 'rent' || form.compensation_type === 'hybrid') && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: textSec, fontWeight: '600' }}>
+                Valor do Aluguel Mensal (R$)
+              </label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="number" min="0" step="0.01"
+                placeholder="Ex: 800.00"
                 value={form.monthly_rent_share}
-                onChange={e => setForm({...form, monthly_rent_share: e.target.value})}
-                style={inputStyle}
+                onChange={e => setForm({ ...form, monthly_rent_share: e.target.value })}
+                style={{ ...inputStyle, marginBottom: 0 }}
               />
-            </>
+              <small style={{ color: textSec, fontSize: '0.78rem', display: 'block', marginTop: '4px' }}>
+                Valor fixo mensal que ela paga pelo espaco.
+              </small>
+            </div>
           )}
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', background: 'transparent', border: `1px solid ${borderCol}`, color: textMain, borderRadius: '8px', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', background: 'transparent', border: `1px solid ${borderCol}`, color: textSec, borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={saving} style={{ flex: 2, padding: '14px', background: 'var(--primary-color, #e91e63)', border: 'none', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-              {saving ? 'Adicionando...' : 'Adicionar à Equipe'}
+            <button type="submit" disabled={saving} style={{ flex: 1, padding: '14px', background: 'var(--primary-color, #e91e63)', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </form>
-
       </div>
     </div>
   );
