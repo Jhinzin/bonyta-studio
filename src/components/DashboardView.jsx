@@ -334,13 +334,32 @@ export default function DashboardView({ appointments, professionals, products = 
 
   if (professionalMode) {
     const professionalName = currentProfessionalFinance?.name || professionals[0]?.name || 'profissional'
+    const isCommission = currentProfessionalFinance?.compensationType === 'commission'
+    const isRent = currentProfessionalFinance?.compensationType === 'rent_share' || currentProfessionalFinance?.compensationType === 'rent'
+    const commissionPercent = currentProfessionalFinance?.commissionPercent || 50
+    const monthlyRent = currentProfessionalFinance?.monthlyRentShare || 0
+
+    // Cálculos específicos para comissionada (Ex: Carol)
+    const comissaoTotal = faturamentoPrevisto * (commissionPercent / 100)
+    const comissaoRecebida = totalRecebido * (commissionPercent / 100)
+    const comissaoEmAberto = totalEmAberto * (commissionPercent / 100)
+
+    // Cálculos específicos para aluguel de espaço (Ex: Mayra)
+    const meuFaturamentoBruto = faturamentoPrevisto
+    const meuSaldoLiquido = Math.max(meuFaturamentoBruto - (periodMode === 'mes' ? monthlyRent : 0), 0)
 
     return (
       <div style={{ padding: '20px', paddingBottom: '100px', background: bgMain, height: '100%', overflowY: 'auto' }}>
         <div style={{ marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: textMain, margin: 0 }}>Meus ganhos</h2>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: textMain, margin: 0 }}>
+            {isCommission ? 'Meus Ganhos & Comissão' : isRent ? 'Meu Faturamento' : 'Meus Atendimentos'}
+          </h2>
           <p style={{ color: textSec, fontSize: '0.82rem', marginTop: '4px' }}>
-            Visão da {professionalName}: atendimentos, recebidos e valores em aberto.
+            {isCommission
+              ? `Visão da ${professionalName}: ${commissionPercent}% de comissão sobre seus atendimentos.`
+              : isRent
+                ? `Visão da ${professionalName}: Faturamento próprio e controle de espaço.`
+                : `Visão da ${professionalName}: atendimentos e valores.`}
           </p>
         </div>
 
@@ -368,46 +387,82 @@ export default function DashboardView({ appointments, professionals, products = 
           </div>
         </div>
 
+        {/* BANNER PRINCIPAL */}
         <div style={{ background: 'linear-gradient(135deg, var(--primary-color, #e91e63) 0%, #ff758c 100%)', borderRadius: '16px', padding: '22px', color: '#fff', boxShadow: '0 4px 15px rgba(233, 30, 99, 0.25)', marginBottom: '12px' }}>
-          <div style={{ fontSize: '0.82rem', opacity: 0.9, fontWeight: 800, textTransform: 'uppercase' }}>Meu valor estimado</div>
-          <div style={{ fontSize: '2.05rem', fontWeight: 950, marginTop: '6px' }}>{formatCurrency(currentProfessionalPayout)}</div>
+          <div style={{ fontSize: '0.82rem', opacity: 0.9, fontWeight: 800, textTransform: 'uppercase' }}>
+            {isCommission ? 'Minha Comissão Total a Receber' : isRent ? 'Meu Faturamento do Período' : 'Meu Valor Estimado'}
+          </div>
+          <div style={{ fontSize: '2.05rem', fontWeight: 950, marginTop: '6px' }}>
+            {formatCurrency(isCommission ? comissaoTotal : isRent ? meuFaturamentoBruto : currentProfessionalPayout)}
+          </div>
           <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '4px' }}>
-            Baseado nos atendimentos do período. A confirmação final fica com a administração.
+            {isCommission
+              ? `Calculado sobre ${payableAppointments.length} atendimentos (${commissionPercent}% do valor).`
+              : isRent
+                ? `Aluguel fixo: ${formatCurrency(monthlyRent)}/mês · Saldo Líquido: ${formatCurrency(meuSaldoLiquido)}`
+                : 'Baseado nos atendimentos do período.'}
           </div>
         </div>
 
+        {/* CARDS DE INDICADORES */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-          {[
+          {isCommission ? [
             { label: 'Atendimentos', value: payableAppointments.length, color: textMain },
-            { label: 'Recebido', value: formatCurrency(totalRecebido), color: '#10b981' },
-            { label: 'Em aberto', value: formatCurrency(totalEmAberto), color: '#f59e0b' },
+            { label: 'Comissão Recebida', value: formatCurrency(comissaoRecebida), color: '#10b981' },
+            { label: 'Comissão em Aberto', value: formatCurrency(comissaoEmAberto), color: '#f59e0b' },
             { label: 'Concluídos', value: closedAppointments.length, color: '#10b981' }
           ].map((card) => (
             <div key={card.label} style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}` }}>
               <div style={{ fontSize: '0.75rem', color: textSec, fontWeight: 800, textTransform: 'uppercase' }}>{card.label}</div>
-              <div style={{ fontSize: '1.16rem', fontWeight: 900, color: card.color, marginTop: '5px' }}>{card.value}</div>
+              <div style={{ fontSize: '1.12rem', fontWeight: 900, color: card.color, marginTop: '5px' }}>{card.value}</div>
+            </div>
+          )) : [
+            { label: 'Atendimentos', value: payableAppointments.length, color: textMain },
+            { label: 'Total Recebido', value: formatCurrency(totalRecebido), color: '#10b981' },
+            { label: 'Aluguel do Espaço', value: formatCurrency(monthlyRent), color: '#3b82f6' },
+            { label: 'Saldo Líquido', value: formatCurrency(meuSaldoLiquido), color: '#10b981' }
+          ].map((card) => (
+            <div key={card.label} style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}` }}>
+              <div style={{ fontSize: '0.75rem', color: textSec, fontWeight: 800, textTransform: 'uppercase' }}>{card.label}</div>
+              <div style={{ fontSize: '1.12rem', fontWeight: 900, color: card.color, marginTop: '5px' }}>{card.value}</div>
             </div>
           ))}
         </div>
 
+        {/* LISTA DE ATENDIMENTOS DA PROFISSIONAL */}
         <section style={{ background: bgCard, borderRadius: '14px', padding: '14px', border: `1px solid ${borderCol}`, marginBottom: '16px' }}>
           <h3 style={{ margin: '0 0 12px', color: textMain, fontSize: '1rem', fontWeight: 900 }}>Meus atendimentos</h3>
           {payableAppointments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '30px', color: textSec, border: `1px dashed ${borderCol}`, borderRadius: '12px' }}>Nenhum atendimento neste período.</div>
           ) : (
-            payableAppointments.slice(0, 14).map((appointment) => (
-              <div key={appointment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `1px solid ${borderCol}` }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: textMain, fontWeight: 900, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.client_name || 'Cliente'}</div>
-                  <div style={{ color: textSec, fontSize: '0.76rem', marginTop: '2px' }}>{shortDate(appointment.date)} · {String(appointment.time || '').slice(0, 5)} · {appointment.service}</div>
-                  <div style={{ color: textSec, fontSize: '0.72rem', marginTop: '2px' }}>{statusConfig[appointment.status]?.label || appointment.status} · {paymentStatusLabel[appointment.payment_status] || 'Pagamento'}</div>
+            payableAppointments.map((appointment) => {
+              const appointmentCommission = isCommission
+                ? Number(appointment.total_price || 0) * (commissionPercent / 100)
+                : Number(appointment.total_price || 0)
+
+              return (
+                <div key={appointment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `1px solid ${borderCol}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: textMain, fontWeight: 900, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.client_name || 'Cliente'}</div>
+                    <div style={{ color: textSec, fontSize: '0.76rem', marginTop: '2px' }}>{shortDate(appointment.date)} · {String(appointment.time || '').slice(0, 5)} · {appointment.service}</div>
+                    <div style={{ color: textSec, fontSize: '0.72rem', marginTop: '2px' }}>{statusConfig[appointment.status]?.label || appointment.status} · {paymentStatusLabel[appointment.payment_status] || 'Pagamento'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontWeight: 900, color: '#10b981' }}>
+                      {isCommission ? `Sua comissão: ${formatCurrency(appointmentCommission)}` : formatCurrency(getPaidAmount(appointment))}
+                    </div>
+                    {isCommission && (
+                      <div style={{ fontSize: '0.74rem', color: textSec }}>
+                        Serviço: {formatCurrency(Number(appointment.total_price || 0))} ({commissionPercent}%)
+                      </div>
+                    )}
+                    {!isCommission && getOpenAmount(appointment) > 0 && (
+                      <div style={{ fontSize: '0.74rem', color: '#f59e0b' }}>Aberto {formatCurrency(getOpenAmount(appointment))}</div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 900, color: '#10b981' }}>{formatCurrency(getPaidAmount(appointment))}</div>
-                  {getOpenAmount(appointment) > 0 && <div style={{ fontSize: '0.74rem', color: '#f59e0b' }}>Aberto {formatCurrency(getOpenAmount(appointment))}</div>}
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </section>
       </div>

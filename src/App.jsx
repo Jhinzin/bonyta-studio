@@ -808,6 +808,7 @@ function StudioApp() {
         loading={userProfilesLoading}
         error={userProfilesError}
         onSave={saveUserProfile}
+        onUpdateProfessional={updateProfessional}
       />
 
       {/* CADASTRO DE PROFISSIONAL */}
