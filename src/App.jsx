@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppointments } from './hooks/useAppointments'
 import { useClients } from './hooks/useClients'
 import { useProducts } from './hooks/useProducts'
@@ -11,7 +11,6 @@ import { useUserProfiles } from './hooks/useUserProfiles'
 import { useMessageLogs } from './hooks/useMessageLogs'
 import { formatDateToISO } from './utils'
 import { onlyDigits } from './utils/whatsapp'
-import { buildCommunicationTasks } from './utils/communicationTasks'
 import Header from './components/Header'
 import WeekDaysStrip from './components/WeekDaysStrip'
 import DayView from './components/DayView'
@@ -22,8 +21,6 @@ import AppointmentModal from './components/AppointmentModal'
 import ServicesView from './components/ServicesView'
 import ClientsView from './components/ClientsView'
 import BookingRequestsModal from './components/BookingRequestsModal'
-import DailyCenterModal from './components/DailyCenterModal'
-import CommunicationCenterModal from './components/CommunicationCenterModal'
 import AccessControlModal from './components/AccessControlModal'
 import WaitlistModal from './components/WaitlistModal'
 import WorkingHoursModal from './components/WorkingHoursModal'
@@ -63,8 +60,6 @@ function StudioApp() {
   const [view, setView] = useState('dia')
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
   const [bookingRequestsModalOpen, setBookingRequestsModalOpen] = useState(false);
-  const [dailyCenterModalOpen, setDailyCenterModalOpen] = useState(false);
-  const [communicationCenterOpen, setCommunicationCenterOpen] = useState(false);
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
   const [accessControlModalOpen, setAccessControlModalOpen] = useState(false);
   const [profFilter, setProfFilter] = useState('todos')
@@ -136,12 +131,6 @@ function StudioApp() {
   const scopedAppointments = access.isProfessional
     ? (access.professionalId ? appointments.filter((appointment) => appointment.professional_id === access.professionalId) : [])
     : access.isOwner ? appointments : []
-  const communicationTasks = useMemo(() => buildCommunicationTasks({
-    appointments: scopedAppointments,
-    clients,
-    professionals: scopedProfessionals,
-    messageLogs
-  }), [clients, messageLogs, scopedAppointments, scopedProfessionals])
 
   useEffect(() => {
     if (!allowedTabs.includes(activeTab)) {
@@ -344,21 +333,6 @@ function StudioApp() {
     {
       title: 'Operação',
       items: [
-        {
-          label: 'Central de mensagens',
-          description: 'Confirmações, manutenção e clientes sumidas',
-          icon: 'fa-comments',
-          color: '#25D366',
-          badge: communicationTasks.length,
-          onClick: () => setCommunicationCenterOpen(true)
-        },
-        {
-          label: 'Central do dia',
-          description: 'Confirmar, lembrar e lançar sinal',
-          icon: 'fa-bell',
-          color: '#06b6d4',
-          onClick: () => setDailyCenterModalOpen(true)
-        },
         access.canSeeSiteRequests && {
           label: 'Agenda do site',
           description: 'Pedidos vindos da landing',
@@ -759,30 +733,6 @@ function StudioApp() {
         onLogMessage={logMessage}
         onUpdateStatus={updateRequestStatus}
         onCreateAppointment={openAppointmentFromBookingRequest}
-      />
-
-      {/* CENTRAL DO DIA */}
-      <DailyCenterModal
-        open={dailyCenterModalOpen}
-        onClose={() => setDailyCenterModalOpen(false)}
-        theme={theme}
-        selectedDate={selectedDate}
-        appointments={scopedAppointments}
-        clients={clients}
-        professionals={scopedProfessionals}
-        messageLogs={messageLogs}
-        messageLogsError={messageLogsError}
-        onLogMessage={logMessage}
-        onUpdateAppointment={updateAppointment}
-      />
-
-      {/* CENTRAL DE COMUNICAÇÃO */}
-      <CommunicationCenterModal
-        open={communicationCenterOpen}
-        onClose={() => setCommunicationCenterOpen(false)}
-        theme={theme}
-        tasks={communicationTasks}
-        onLogMessage={logMessage}
       />
 
       {/* HORÁRIOS DE EXPEDIENTE */}
